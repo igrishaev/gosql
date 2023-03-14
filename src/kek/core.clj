@@ -30,6 +30,39 @@
     "?"))
 
 
+(defmacro makefn [name template]
+  `(defn ~name []
+     (str ~template "AAAAAA")))
+
+
+
+
+(parser/add-tag!
+ :query
+ (fn [args context-map content]
+
+   (let [fn-name
+         (-> args first symbol)
+
+         body
+         (-> content :query :content)
+
+         _ (println args context-map content)
+
+         template
+         (parser/parse parser/parse-input (new java.io.StringReader body) #_opts)]
+
+     (intern *ns* fn-name
+             (fn [context]
+               (parser/render-template template context)))
+
+     "OK"))
+ :endquery)
+
+
+#_
+(parser/render "{% query my-foo %} {% verbatim %} test {{ id }} hello {% endverbatim %} {% endquery %}" {})
+
 (defn foobar [context]
   (binding [*context* context
             *params* (new ArrayList)]

@@ -14,7 +14,7 @@ where id = {{ id|param }}
 
 
 
-{% query other_query %}
+{% query get-user-by-id :one %}
 
 select * from users
 where id = {% param id %}
