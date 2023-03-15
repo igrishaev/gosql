@@ -1,5 +1,6 @@
 (ns kek.core
   (:import
+   java.io.Reader
    java.util.Map
    java.util.List
    java.util.ArrayList
@@ -30,29 +31,61 @@
     "?"))
 
 
+(defn read-char ^Character [^Reader rdr]
+  (let [ch-int (.read rdr)]
+    (when-not (neg? ch-int)
+      (char ch-int))))
+
+
+(defn consume-query [^Reader rdr]
+  (let [sb (new StringBuilder)]
+    (loop []
+      (if-let [ch (read-char rdr)]
+        (do
+          (.append sb ch)
+          (if (clojure.string/ends-with? sb "{% endquery %}")
+            (-> sb str (subs 0 (-> sb count (- 14))))
+            (recur)))
+        (str sb)))))
+
+
 (defmacro makefn [name template]
   `(defn ~name []
      (str ~template "AAAAAA")))
 
 
 (defn query-handler [args tag-content render rdr]
-  (let [buf (char-array 21)
-        _ (.read rdr buf)
-        payload (apply str buf)]
+  (let [;; buf (char-array 21)
+        ;; _ (.read rdr buf)
 
-    (.read rdr (char-array 14))
+        payload
+        (consume-query rdr)
+
+        ;; payload (apply str buf)
+
+        ]
+
+    ;; (.read rdr (char-array 16))
 
     (println payload)
 
-    (let [template
+    (let [[query-name]
+          args
+
+          func-name
+          (-> query-name symbol)
+
+          template
           (parser/parse parser/parse-input (new java.io.StringReader payload) #_opts)]
 
-      (intern *ns* 'foo-bar
+      (intern *ns* func-name
               (fn [context]
-                (parser/render-template template context))))
+                (parser/render-template template context)))
 
-    (fn [_]
-      "created")))
+      (fn [_]
+        (printf ">> function %s has been created\n" func-name)
+        ""
+))))
 
 
 (swap! selmer.tags/expr-tags
