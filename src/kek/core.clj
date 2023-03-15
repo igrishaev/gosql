@@ -35,8 +35,40 @@
      (str ~template "AAAAAA")))
 
 
+(defn query-handler [args tag-content render rdr]
+  (let [buf (char-array 21)
+        _ (.read rdr buf)
+        payload (apply str buf)]
+
+    (.read rdr (char-array 14))
+
+    (println payload)
+
+    (let [template
+          (parser/parse parser/parse-input (new java.io.StringReader payload) #_opts)]
+
+      (intern *ns* 'foo-bar
+              (fn [context]
+                (parser/render-template template context))))
+
+    (fn [_]
+      "created")))
 
 
+(swap! selmer.tags/expr-tags
+       assoc
+       :query
+       query-handler)
+
+
+(swap! selmer.tags/closing-tags
+       assoc
+       :query
+       [:endquery])
+
+
+
+#_
 (parser/add-tag!
  :query
  (fn [args context-map content]
