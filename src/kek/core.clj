@@ -1,6 +1,8 @@
 (ns kek.core
   (:import
+   java.io.StringReader
    java.io.Reader
+   java.io.LineNumberReader
    java.util.Map
    java.util.List
    java.util.ArrayList
@@ -13,22 +15,9 @@
 
 (parser/set-resource-path! (clojure.java.io/resource "sql"))
 
-#_
-(parser/render-file "get-user-by-id.sql" {:id 1})
-
 
 (def ^:dynamic ^Map *context* nil)
 (def ^:dynamic ^List *params* nil)
-
-(defmacro update! [value func & args]
-  `(set! ~value (~func ~value ~@args)))
-
-
-(defn param [p]
-  (let [value (get *context* p)]
-    (.add *params* value)
-    #_(update! *params* conj value)
-    "?"))
 
 
 (defn read-char ^Character [^Reader rdr]
@@ -49,23 +38,15 @@
         (str sb)))))
 
 
-(defmacro makefn [name template]
-  `(defn ~name []
-     (str ~template "AAAAAA")))
-
-
 (defn query-handler [args tag-content render rdr]
-  (let [;; buf (char-array 21)
-        ;; _ (.read rdr buf)
 
-        payload
+  (println (type rdr) args tag-content)
+
+  (let [payload
         (consume-query rdr)
 
-        ;; payload (apply str buf)
-
-        ]
-
-    ;; (.read rdr (char-array 16))
+        line
+        (.getLineNumber ^LineNumberReader rdr)]
 
     (println payload)
 
@@ -76,16 +57,40 @@
           (-> query-name symbol)
 
           template
-          (parser/parse parser/parse-input (new java.io.StringReader payload) #_opts)]
+          (parser/parse parser/parse-input (new StringReader payload) #_opts)
 
-      (intern *ns* func-name
-              (fn [context]
-                (parser/render-template template context)))
+          fn-var
+          (intern *ns* func-name
+
+                  (fn -query
+
+                    ([db]
+                     (-query db nil))
+
+                    ([db context]
+                     (binding [*context* context
+                               *params* (new ArrayList)]
+
+                       (let [query
+                             (parser/render-template template context)
+
+                             params
+                             (vec *params*)]
+
+                         [query params])))))]
+
+      (alter-meta! fn-var assoc
+                   :doc "foo kek 123"
+                   :name func-name
+                   :line line
+                   :column 1
+                   ;; :file "clojure/core.clj"
+                   :arglists '([db]
+                               [db context]))
 
       (fn [_]
-        (printf ">> function %s has been created\n" func-name)
-        ""
-))))
+        (println (format "function %s has been created" func-name))
+        nil))))
 
 
 (swap! selmer.tags/expr-tags
@@ -100,42 +105,26 @@
        [:endquery])
 
 
-
-#_
-(parser/add-tag!
- :query
- (fn [args context-map content]
-
-   (let [fn-name
-         (-> args first symbol)
-
-         body
-         (-> content :query :content)
-
-         _ (println args context-map content)
-
-         template
-         (parser/parse parser/parse-input (new java.io.StringReader body) #_opts)]
-
-     (intern *ns* fn-name
-             (fn [context]
-               (parser/render-template template context)))
-
-     "OK"))
- :endquery)
+(parser/add-filter!
+ "?" (fn [value]
+       (.add *params* value)
+       "?"))
 
 
 #_
-(parser/render "{% query my-foo %} {% verbatim %} test {{ id }} hello {% endverbatim %} {% endquery %}" {})
+(declare-queries "{% query kek-aaa %}  test {{ id|? }} hello {% endquery %}   {% query kek-bbb %} SSS {{ foo }} XXX {% endquery %}")
 
-(defn foobar [context]
-  (binding [*context* context
-            *params* (new ArrayList)]
+(defn declare-queries [string]
+  (parser/render-template (parser/parse parser/parse-input
+                                        (-> string
+                                            (StringReader.)
+                                            (LineNumberReader.))
+                                        #_opts)
 
-    (doseq [[k _] context]
-      (param k))
+                          #_context-map nil)
+  #_
+  (parser/render string nil))
 
-    *params*))
 
 
 (defn -main
