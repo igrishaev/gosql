@@ -5,19 +5,18 @@
    java.io.LineNumberReader
    java.util.Map
    java.util.List
-   java.util.ArrayList
-   )
+   java.util.ArrayList)
   (:require
-   [selmer.parser :as parser]
-   )
-  (:gen-class))
+   [selmer.parser :as parser]))
 
 
-(parser/set-resource-path! (clojure.java.io/resource "sql"))
+(parser/set-resource-path!
+ (clojure.java.io/resource "sql"))
 
 
 (def ^:dynamic ^Map *context* nil)
 (def ^:dynamic ^List *params* nil)
+(def ^:dynamic ^String *file-name* nil)
 
 
 (defn read-char ^Character [^Reader rdr]
@@ -38,9 +37,30 @@
         (str sb)))))
 
 
-(defn query-handler [args tag-content render rdr]
+(defn args->opts [args]
+  (loop [acc {}
+         [arg & args] args]
 
-  (println (type rdr) args tag-content)
+    (if arg
+
+      (cond
+
+        (= arg ":1")
+        (recur (assoc acc :one? true) args)
+
+        (= arg ":doc")
+        (let [[arg & args] args]
+          (if (string? arg)
+            (recur (assoc acc :doc arg) args)
+            (throw (new Exception (format "The arg %s is not a string!" arg)))))
+
+        :else
+        (recur acc args))
+
+      acc)))
+
+
+(defn query-handler [args tag-content render rdr]
 
   (let [payload
         (consume-query rdr)
@@ -50,8 +70,11 @@
 
     (println payload)
 
-    (let [[query-name]
+    (let [[query-name & args-rest]
           args
+
+          {:keys [one? doc]}
+          (args->opts args-rest)
 
           func-name
           (-> query-name symbol)
@@ -80,11 +103,11 @@
                          [query params])))))]
 
       (alter-meta! fn-var assoc
-                   :doc "foo kek 123"
+                   :doc doc
                    :name func-name
                    :line line
                    :column 1
-                   ;; :file "clojure/core.clj"
+                   :file *file-name*
                    :arglists '([db]
                                [db context]))
 
@@ -111,23 +134,17 @@
        "?"))
 
 
+(defn declare-queries [string]
+  (binding [*file-name* "resources/sql/get-user-by-id.sql"]
+    (parser/render-template (parser/parse parser/parse-input
+                                          (-> string
+                                              (StringReader.)
+                                              (LineNumberReader.))
+                                          #_opts)
+
+                            #_context-map nil)))
+
+
+
 #_
 (declare-queries "{% query kek-aaa %}  test {{ id|? }} hello {% endquery %}   {% query kek-bbb %} SSS {{ foo }} XXX {% endquery %}")
-
-(defn declare-queries [string]
-  (parser/render-template (parser/parse parser/parse-input
-                                        (-> string
-                                            (StringReader.)
-                                            (LineNumberReader.))
-                                        #_opts)
-
-                          #_context-map nil)
-  #_
-  (parser/render string nil))
-
-
-
-(defn -main
-  "I don't do a whole lot ... yet."
-  [& args]
-  (println "Hello, World!"))
