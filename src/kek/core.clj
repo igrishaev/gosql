@@ -2,16 +2,14 @@
   (:import
    java.io.StringReader
    java.io.Reader
+   java.io.File
    java.io.LineNumberReader
    java.util.Map
    java.util.List
    java.util.ArrayList)
   (:require
+   [clojure.java.io :as io]
    [selmer.parser :as parser]))
-
-
-(parser/set-resource-path!
- (clojure.java.io/resource "sql"))
 
 
 (def ^:dynamic ^Map *context* nil)
@@ -62,11 +60,11 @@
 
 (defn query-handler [args tag-content render rdr]
 
-  (let [payload
-        (consume-query rdr)
+  (let [line
+        (.getLineNumber ^LineNumberReader rdr)
 
-        line
-        (.getLineNumber ^LineNumberReader rdr)]
+        payload
+        (consume-query rdr)]
 
     (println payload)
 
@@ -134,17 +132,36 @@
        "?"))
 
 
-(defn declare-queries [string]
-  (binding [*file-name* "resources/sql/get-user-by-id.sql"]
-    (parser/render-template (parser/parse parser/parse-input
-                                          (-> string
-                                              (StringReader.)
-                                              (LineNumberReader.))
-                                          #_opts)
+(defn from-reader [rdr]
+  (parser/render-template (parser/parse parser/parse-input
+                                        (new LineNumberReader rdr)
+                                        #_opts)
+                          #_context-map nil))
 
-                            #_context-map nil)))
 
+(defn- -from-file [^File file]
+  ;; todo: from-reader
+  ;; TODO: check if exists
+  (binding [*file-name* (.getAbsolutePath file)]
+    (from-reader (io/reader file))))
+
+
+(defn from-string [string]
+  (from-reader (new StringReader string)))
+
+
+(defn from-resource [path]
+  (-from-file (-> path
+                  (io/resource)
+                  (io/file))))
+
+
+(defn from-file [path]
+  (-from-file (io/file path)))
 
 
 #_
-(declare-queries "{% query kek-aaa %}  test {{ id|? }} hello {% endquery %}   {% query kek-bbb %} SSS {{ foo }} XXX {% endquery %}")
+(from-resource "queries.sql")
+
+#_
+(from-file "resources/queries.sql")
