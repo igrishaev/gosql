@@ -1,5 +1,6 @@
 (ns kek.core
   (:import
+   java.util.regex.Pattern
    java.io.StringReader
    java.io.Reader
    java.io.File
@@ -8,6 +9,7 @@
    java.util.List
    java.util.ArrayList)
   (:require
+   [clojure.string :as str]
    [clojure.java.io :as io]
    [selmer.parser :as parser]))
 
@@ -15,6 +17,15 @@
 (def ^:dynamic ^Map *context* nil)
 (def ^:dynamic ^List *params* nil)
 (def ^:dynamic ^String *file-name* nil)
+(def ^:dynamic ^List *functions* nil)
+
+
+(defn error!
+  ([^String message]
+   (throw (new Exception message)))
+
+  ([^String template & args]
+   (throw (new Exception ^String (apply format template args)))))
 
 
 (defn read-char ^Character [^Reader rdr]
@@ -23,16 +34,27 @@
       (char ch-int))))
 
 
-(defn consume-query [^Reader rdr]
-  (let [sb (new StringBuilder)]
+(defn read-query [^Reader rdr]
+  (let [sb (new StringBuilder)
+        re #"(?s)(.+)\{\%\s+endquery\s+\%\}$"]
     (loop []
       (if-let [ch (read-char rdr)]
         (do
           (.append sb ch)
-          (if (clojure.string/ends-with? sb "{% endquery %}")
-            (-> sb str (subs 0 (-> sb count (- 14))))
+          (if-let [[_ query] (re-matches re (str sb))]
+            query
             (recur)))
-        (str sb)))))
+        (error! "the reader has been closed before reaching the end of the query")))))
+
+
+(defn clean-docstring [^String string]
+  (cond-> string
+
+    (str/starts-with? string "\"")
+    (subs 1)
+
+    (str/ends-with? string "\"")
+    (subs 0 (-> string count dec dec))))
 
 
 (defn args->opts [args]
@@ -47,10 +69,10 @@
         (recur (assoc acc :one? true) args)
 
         (= arg ":doc")
-        (let [[arg & args] args]
-          (if (string? arg)
-            (recur (assoc acc :doc arg) args)
-            (throw (new Exception (format "The arg %s is not a string!" arg)))))
+        (let [[doc & args] args]
+          (if (string? doc)
+            (recur (assoc acc :doc (clean-docstring doc)) args)
+            (error! format "the :doc arg %s is not a string!" arg)))
 
         :else
         (recur acc args))
@@ -64,9 +86,7 @@
         (.getLineNumber ^LineNumberReader rdr)
 
         payload
-        (consume-query rdr)]
-
-    (println payload)
+        (read-query rdr)]
 
     (let [[query-name & args-rest]
           args
@@ -78,7 +98,7 @@
           (-> query-name symbol)
 
           template
-          (parser/parse parser/parse-input (new StringReader payload) #_opts)
+          (parser/parse parser/parse-input (new StringReader payload))
 
           fn-var
           (intern *ns* func-name
@@ -91,14 +111,11 @@
                     ([db context]
                      (binding [*context* context
                                *params* (new ArrayList)]
-
                        (let [query
-                             (parser/render-template template context)
+                             (parser/render-template template context)]
+                         (into [query] (vec *params*)))))))]
 
-                             params
-                             (vec *params*)]
-
-                         [query params])))))]
+      (.add *functions* fn-var)
 
       (alter-meta! fn-var assoc
                    :doc doc
@@ -110,7 +127,6 @@
                                [db context]))
 
       (fn [_]
-        (println (format "function %s has been created" func-name))
         nil))))
 
 
@@ -133,15 +149,17 @@
 
 
 (defn from-reader [rdr]
-  (parser/render-template (parser/parse parser/parse-input
-                                        (new LineNumberReader rdr)
-                                        #_opts)
-                          #_context-map nil))
+  (binding [*functions* (new ArrayList)]
+    (parser/render-template
+     (parser/parse parser/parse-input
+                   (new LineNumberReader rdr))
+     nil)
+    (vec *functions*)))
 
 
-(defn- -from-file [^File file]
-  ;; todo: from-reader
-  ;; TODO: check if exists
+(defn from-file [^File file]
+  (when-not (.exists file)
+    (error! "file %s doesn't exist" (str file)))
   (binding [*file-name* (.getAbsolutePath file)]
     (from-reader (io/reader file))))
 
@@ -151,17 +169,18 @@
 
 
 (defn from-resource [path]
-  (-from-file (-> path
-                  (io/resource)
-                  (io/file))))
+  (from-file (-> path
+                 (io/resource)
+                 (or (error! "resource %s doesn't exist" path))
+                 (io/file))))
 
 
-(defn from-file [path]
-  (-from-file (io/file path)))
+(defn from-file-path [path]
+  (from-file (io/file path)))
 
 
 #_
 (from-resource "queries.sql")
 
 #_
-(from-file "resources/queries.sql")
+(from-file-path "resources/queries.sql")
