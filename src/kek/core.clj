@@ -73,6 +73,9 @@
 
       (cond
 
+        (= arg ":count")
+        (recur (assoc acc :count? true) args)
+
         (or (= arg ":1") (= arg ":one"))
         (recur (assoc acc :one? true) args)
 
@@ -127,7 +130,10 @@
     (let [[query-name & args-rest]
           args
 
-          {:keys [one? doc builder-fn]}
+          {:keys [one?
+                  doc
+                  builder-fn
+                  count?]}
           (args->opts args-rest)
 
           func-name
@@ -170,13 +176,19 @@
                        (let [query
                              (parser/render-template template context)
 
+                             _
+                             (when debug?
+                               (println query))
+
                              query-vec
-                             (into [query] (vec *params*))]
+                             (into [query] (vec *params*))
 
-                         (when debug?
-                           (println query))
+                             result
+                             (jdbc-func db query-vec jdbc-opt)]
 
-                         (jdbc-func db query-vec jdbc-opt))))))]
+                         (if count?
+                           (-> result first :next.jdbc/update-count)
+                           result))))))]
 
       (.add *functions* fn-var)
 

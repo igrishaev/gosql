@@ -61,3 +61,10 @@ do update set {{ values | EXCLUDED }}
 returning *
 
 {% endquery %}
+
+
+{% query delete-all-items :count %}
+
+delete from items
+
+{% endquery %}

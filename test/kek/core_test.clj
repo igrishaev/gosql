@@ -143,3 +143,14 @@
             {:sku "XXX3" :price 33}
             {:sku "XXX2" :price 999}]
            items))))
+
+
+(deftest test-delete-all-items
+
+  (let [db
+        (jdbc/get-datasource db-spec)
+
+        result
+        (delete-all-items db)]
+
+    (is (= 0 result))))
