@@ -129,7 +129,7 @@
 
           vars
           (->> payload
-               (re-seq #"(?m)\{\{\s*([^| ]+)")
+               (re-seq #"(?m)\{\{\s*([^|\} ]+)")
                (mapv second)
                (mapv symbol))
 
@@ -178,10 +178,6 @@
                    :column 1
                    :file *file-name*
                    :arglists
-                   #_
-                   '(list [db]
-                          [db {:as context :keys [debug?]}])
-
                    (list ['db]
                          ['db {:as 'context
                                :keys (into ['debug?] vars)}]))
