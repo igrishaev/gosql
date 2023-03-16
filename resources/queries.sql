@@ -15,5 +15,6 @@ sdfsfsdfsdfdfsfsdf
 
 select * from users
 where id = {{ id|? }}
+limit {{  limit}}
 
 {% endquery %}

@@ -127,6 +127,12 @@
           func-name
           (-> query-name symbol)
 
+          vars
+          (->> payload
+               (re-seq #"(?m)\{\{\s*([^| ]+)")
+               (mapv second)
+               (mapv symbol))
+
           template
           (parser/parse parser/parse-input (new StringReader payload))
 
@@ -148,7 +154,7 @@
                     ([db]
                      (-query db nil))
 
-                    ([db context]
+                    ([db {:keys [debug?] :as context}]
                      (binding [*context* context
                                *params* (new ArrayList)]
 
@@ -157,6 +163,9 @@
 
                              query-vec
                              (into [query] (vec *params*))]
+
+                         (when debug?
+                           (println query))
 
                          (jdbc-func db query-vec jdbc-opt))))))]
 
@@ -168,8 +177,14 @@
                    :line line
                    :column 1
                    :file *file-name*
-                   :arglists '([db]
-                               [db context]))
+                   :arglists
+                   #_
+                   '(list [db]
+                          [db {:as context :keys [debug?]}])
+
+                   (list ['db]
+                         ['db {:as 'context
+                               :keys (into ['debug?] vars)}]))
 
       (fn [_]
         nil))))
