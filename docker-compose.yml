@@ -3,7 +3,7 @@ version: "3.6"
 services:
 
   postgres:
-    image: postgres:14
+    image: postgres:13
     command: -E
     restart: always
     hostname: postgres

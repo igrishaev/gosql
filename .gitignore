@@ -12,4 +12,4 @@ pom.xml.asc
 .hgignore
 .hg/
 
-./.docker/postgres/data
+.docker/postgres/data

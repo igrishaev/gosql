@@ -20,4 +20,5 @@
 
    :dev
    {:dependencies
-    [[org.clojure/clojure "1.11.1"]]}})
+    [[org.clojure/clojure "1.11.1"]
+     [org.postgresql/postgresql "42.5.3"]]}})

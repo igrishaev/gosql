@@ -24,6 +24,10 @@
 (def ^:dynamic ^Namespace *namespace* nil)
 
 
+(defn join-comma [coll]
+  (str/join ", " coll))
+
+
 (defn error!
   ([^String message]
    (throw (new Exception message)))
@@ -116,7 +120,9 @@
         (.getLineNumber ^LineNumberReader rdr)
 
         payload
-        (read-query rdr)]
+        (-> rdr
+            read-query
+            str/trim)]
 
     (let [[query-name & args-rest]
           args
@@ -131,7 +137,10 @@
           (->> payload
                (re-seq #"(?m)\{\{\s*([^|\} ]+)")
                (mapv second)
-               (mapv symbol))
+               (mapv symbol)
+               (set))
+
+          ;; TODO: {% ? sku %}
 
           template
           (parser/parse parser/parse-input (new StringReader payload))
@@ -199,9 +208,63 @@
 
 
 (parser/add-filter!
- "?" (fn [value]
-       (.add *params* value)
-       "?"))
+ :? (fn [value]
+      (.add *params* value)
+      "?"))
+
+
+(parser/add-tag!
+ :? (fn [[arg] context]
+      (let [value
+            (get context (keyword arg))]
+        (.add *params* value)
+        "?")))
+
+
+(parser/add-filter!
+ :SET (fn [mapping]
+        (join-comma
+         (for [[k v] mapping]
+           (do
+             (.add *params* v)
+             (format "%s = ?" (name k)))))))
+
+
+(parser/add-filter!
+ :VALUES (fn [mapping]
+           (join-comma
+            (for [[k v] mapping]
+              (do
+                (.add *params* v)
+                "?")))))
+
+(parser/add-filter!
+ :EXCLUDED (fn [mapping]
+             (join-comma
+              (for [[k v] mapping]
+                (format "%s = EXCLUDED.%s"
+                        (name k)
+                        (name k))))))
+
+
+(parser/add-filter!
+ :FIELDS
+ (fn [coll]
+   (join-comma
+    (for [item coll]
+      (cond
+
+        (map-entry? item)
+        (-> item key name)
+
+        (keyword? item)
+        (name item)
+
+        (string? item)
+        item
+
+        :else
+        (error! "Wrong value type for comma join: %s" item))))))
 
 
 (defn from-reader
