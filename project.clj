@@ -15,6 +15,9 @@
    [com.github.seancorfield/next.jdbc "1.3.847"]]
 
   :profiles
-  {:dev
+  {:test
+   {:resource-paths ["env/test/resources"]}
+
+   :dev
    {:dependencies
     [[org.clojure/clojure "1.11.1"]]}})
