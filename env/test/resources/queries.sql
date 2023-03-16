@@ -63,6 +63,19 @@ returning *
 {% endquery %}
 
 
+{% query upsert-item-multi
+    :as-unqualified-maps %}
+
+insert into items ({{ values | first | FIELDS }})
+values {{ values | MVALUES }}
+on conflict (sku)
+do update set {{ values | first | EXCLUDED }}
+returning *
+
+{% endquery %}
+
+
+
 {% query delete-all-items :count %}
 
 delete from items

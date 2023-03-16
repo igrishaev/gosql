@@ -250,6 +250,17 @@
                 (.add *params* v)
                 "?")))))
 
+
+(parser/add-filter!
+ :MVALUES (fn [rows]
+            (join-comma
+             (for [row rows]
+               (join-comma
+                (for [[_ v] row]
+                  (do
+                    (.add *params* v)
+                    "?")))))))
+
 (parser/add-filter!
  :EXCLUDED (fn [mapping]
              (join-comma
