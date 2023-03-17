@@ -30,7 +30,7 @@ where sku = {% ! sku %}
 
 
 {% query get-item-with-fields
-    :1 :as-unqualified-maps %}
+    :1 :pg :as-unqualified-maps %}
 
 select {{ fields | FIELDS }}, 42 as answer from items
 where sku = {{ sku|? }}
