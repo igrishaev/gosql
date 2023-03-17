@@ -154,3 +154,23 @@
         (delete-all-items db)]
 
     (is (= 0 result))))
+
+
+(deftest test-items-by-ids
+
+  (let [db
+        (jdbc/get-datasource db-spec)
+
+        result
+        (get-items-by-ids db {:table :items
+                              :ids [1 2 3 4 5]})]
+
+    (is (= [] result))
+
+
+
+
+
+    )
+
+  )

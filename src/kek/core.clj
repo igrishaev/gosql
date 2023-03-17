@@ -10,6 +10,7 @@
    java.util.List
    java.util.ArrayList)
   (:require
+   [kek.quote :as quote]
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as jdbc.rs]
    [clojure.string :as str]
@@ -73,6 +74,18 @@
 
       (cond
 
+        (= arg ":pg")
+        (recur (assoc acc :quote :pg) args)
+
+        (= arg ":ansi")
+        (recur (assoc acc :quote :ansi) args)
+
+        (= arg ":mysql")
+        (recur (assoc acc :quote :mysql) args)
+
+        (= arg ":mssql")
+        (recur (assoc acc :quote :mssql) args)
+
         (= arg ":count")
         (recur (assoc acc :count? true) args)
 
@@ -133,7 +146,8 @@
           {:keys [one?
                   doc
                   builder-fn
-                  count?]}
+                  count?]
+           quote-type :quote}
           (args->opts args-rest)
 
           func-name
@@ -173,22 +187,24 @@
                      (binding [*context* context
                                *params* (new ArrayList)]
 
-                       (let [query
-                             (parser/render-template template context)
+                       (quote/with-quote-type quote-type
 
-                             _
-                             (when debug?
-                               (println query))
+                         (let [query
+                               (parser/render-template template context)
 
-                             query-vec
-                             (into [query] (vec *params*))
+                               _
+                               (when debug?
+                                 (println query))
 
-                             result
-                             (jdbc-func db query-vec jdbc-opt)]
+                               query-vec
+                               (into [query] (vec *params*))
 
-                         (if count?
-                           (-> result first :next.jdbc/update-count)
-                           result))))))]
+                               result
+                               (jdbc-func db query-vec jdbc-opt)]
+
+                           (if count?
+                             (-> result first :next.jdbc/update-count)
+                             result)))))))]
 
       (.add *functions* fn-var)
 
@@ -249,6 +265,33 @@
               (do
                 (.add *params* v)
                 "?")))))
+
+
+(defn wrap-brackets [content]
+  (str \( content \)))
+
+
+(parser/add-filter!
+ :IN (fn [items]
+       (wrap-brackets
+        (join-comma
+         (for [item items]
+           (do
+             (.add *params* item)
+             "?"))))))
+
+
+(parser/add-tag!
+ :IN (fn [[arg] context]
+       (let [items
+             (get context (keyword arg))]
+         (str "IN" \space
+              (wrap-brackets
+               (join-comma
+                (for [item items]
+                  (do
+                    (.add *params* item)
+                    "?"))))))))
 
 
 (parser/add-filter!

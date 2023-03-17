@@ -81,3 +81,13 @@ returning *
 delete from items
 
 {% endquery %}
+
+
+{% query get-items-by-ids
+    :pg
+%}
+
+select * from {{ table | quote }}
+where id {% IN ids %}
+
+{% endquery %}
