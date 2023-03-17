@@ -8,6 +8,7 @@
    java.util.Map
    clojure.lang.Namespace
    java.util.List
+   javax.sql.DataSource
    java.util.ArrayList)
   (:require
    [kek.quote :as quote]
@@ -23,6 +24,7 @@
 (def ^:dynamic ^String *file-name* nil)
 (def ^:dynamic ^List *functions* nil)
 (def ^:dynamic ^Namespace *namespace* nil)
+(def ^:dynamic ^DataSource *datasource* nil)
 
 
 (defn join-comma [coll]
@@ -130,6 +132,11 @@
       acc)))
 
 
+
+(defn datasource? [x]
+  (instance? javax.sql.DataSource x))
+
+
 (defn query-handler [args tag-content render rdr]
 
   (let [line
@@ -175,14 +182,27 @@
             builder-fn
             (assoc :builder-fn builder-fn))
 
+          DB
+          *datasource*
+
           fn-var
           (intern *namespace* func-name
 
                   (fn -query
 
-                    ([db]
-                     (-query db nil))
+                    ([]
+                     (if DB
+                       (-query DB nil)
+                       (error! "the default data source is not set")))
 
+                    ([arg]
+                     (if (datasource? arg)
+                       (-query arg nil)
+                       (if DB
+                         (-query DB arg)
+                         (error! "the default data source is not set"))))
+
+                    ;; the main entry point
                     ([db {:keys [debug?] :as context}]
                      (binding [*context* context
                                *params* (new ArrayList)]
@@ -215,7 +235,10 @@
                    :column 1
                    :file *file-name*
                    :arglists
-                   (list ['db]
+                   (list []
+                         [{:as 'context
+                           :keys (into ['debug?] vars)}]
+                         ['db]
                          ['db {:as 'context
                                :keys (into ['debug?] vars)}]))
 
@@ -239,6 +262,23 @@
  :? (fn [value]
       (.add *params* value)
       "?"))
+
+
+(parser/add-filter!
+ :! (fn [value]
+      (when (nil? value)
+        (error! "one of the required parameters is nil"))
+      (.add *params* value)
+      "?"))
+
+
+(parser/add-tag!
+ :! (fn [[arg] context]
+      (if-some [value (get context (keyword arg))]
+        (do
+          (.add *params* value)
+          "?")
+        (error! "the `%s` required parameter is nil" arg))))
 
 
 (parser/add-tag!
@@ -339,7 +379,8 @@
   ([^Reader rdr params]
    (binding [*functions* (new ArrayList)
              *namespace* (or (some-> params :ns the-ns)
-                             *ns*)]
+                             *ns*)
+             *datasource* (:db params)]
      (parser/render-template
       (parser/parse parser/parse-input
                     (new LineNumberReader rdr))
@@ -347,22 +388,31 @@
      (vec *functions*))))
 
 
-(defn from-file [^File file]
-  (when-not (.exists file)
-    (error! "file %s doesn't exist" (str file)))
-  (binding [*file-name* (.getAbsolutePath file)]
-    (from-reader (io/reader file))))
+(defn from-file
+  ([^File file]
+   (from-file file nil))
+
+  ([^File file options]
+   (when-not (.exists file)
+     (error! "file %s doesn't exist" (str file)))
+   (binding [*file-name* (.getAbsolutePath file)]
+     (from-reader (io/reader file) options))))
 
 
 (defn from-string [string]
   (from-reader (new StringReader string)))
 
 
-(defn from-resource [path]
-  (from-file (-> path
-                 (io/resource)
-                 (or (error! "resource %s doesn't exist" path))
-                 (io/file))))
+(defn from-resource
+  ([path]
+   (from-resource nil))
+
+  ([path options]
+   (from-file (-> path
+                  (io/resource)
+                  (or (error! "resource %s doesn't exist" path))
+                  (io/file))
+              options)))
 
 
 (defn from-file-path

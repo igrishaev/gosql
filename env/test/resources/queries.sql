@@ -18,12 +18,12 @@ from items
 
 
 {% query get-item-by-sku
-    :doc "Get a sinle item by its SKU name."
+    :doc "Get a single item by its SKU name."
     :as-unqualified-maps
     :1 %}
 
 select * from items
-where sku = {{ sku|? }}
+where sku = {% ! sku %}
 
 {% endquery %}
 

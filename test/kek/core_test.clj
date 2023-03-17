@@ -14,8 +14,12 @@
    :password "test"})
 
 
+(def -ds
+  (jdbc/get-datasource db-spec))
+
+
 (def funcs
-  (kek/from-resource "queries.sql"))
+  (kek/from-resource "queries.sql" {:db -ds}))
 
 
 (deftest test-func-count
