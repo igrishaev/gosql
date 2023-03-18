@@ -296,7 +296,7 @@
   (let [value
         (get context (keyword arg) ::miss)]
     (if (identical? value ::miss)
-      (error! "parameter %s is not set in the context" arg)
+      (error! "parameter `%s` is not set in the context" arg)
       value)))
 
 
@@ -439,7 +439,7 @@
 
 (defn from-resource
   ([path]
-   (from-resource nil))
+   (from-resource path nil))
 
   ([path options]
    (from-file (-> path

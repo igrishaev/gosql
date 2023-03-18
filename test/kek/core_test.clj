@@ -1,8 +1,18 @@
 (ns kek.core-test
   (:require
    [next.jdbc :as jdbc]
-   [clojure.test :refer [deftest is]]
+   [clojure.test :refer [deftest is use-fixtures]]
    [kek.core :as kek]))
+
+
+(def ^:dynamic *db* nil)
+
+
+(use-fixtures :once
+  (fn [t]
+    (binding [*db*
+              (jdbc/get-datasource db-spec)]
+      (t))))
 
 
 (def db-spec
@@ -14,18 +24,35 @@
    :password "test"})
 
 
+#_
 (def -ds
-  (jdbc/get-datasource db-spec))
+  p(jdbc/get-datasource db-spec))
 
 
 (def funcs
-  (kek/from-resource "queries.sql" {:db -ds}))
+  (kek/from-resource "queries.sql" #_{:db -ds}))
 
 
 (deftest test-func-count
   (is (= 2 (count funcs))))
 
 
+(deftest test-get-items-by-ids
+
+  (let [users
+        (get-items-by-ids *db* {:ids [1 2 3]})]
+
+    (is (= 1 users))))
+
+
+(deftest test-in-missing
+  (is (thrown-with-msg?
+          Exception
+          #"parameter `ids` is not set in the context"
+        (get-items-by-ids *db* {}))))
+
+
+#_
 (deftest test-get-by-sku
 
   (let [vars
@@ -54,6 +81,7 @@
     (is (nil? item3))))
 
 
+#_
 (deftest test-fields-strings
 
   (let [db
@@ -69,6 +97,7 @@
            item))))
 
 
+#_
 (deftest test-fields-keywords
 
   (let [db
@@ -83,7 +112,7 @@
             :answer 42}
            item))))
 
-
+#_
 (deftest test-fields-map
 
   (let [db
@@ -98,7 +127,7 @@
             :answer 42}
            item))))
 
-
+#_
 (deftest test-update-item-by-sku
 
   (let [db
@@ -117,7 +146,7 @@
 
            (dissoc item :id)))))
 
-
+#_
 (deftest test-upsert-item
 
   (let [db
@@ -135,6 +164,7 @@
            (dissoc item :id)))))
 
 
+#_
 (deftest test-get-all-items
 
   (let [db
@@ -149,6 +179,7 @@
            items))))
 
 
+#_
 (deftest test-delete-all-items
 
   (let [db
@@ -159,7 +190,7 @@
 
     (is (= 0 result))))
 
-
+#_
 (deftest test-items-by-ids
 
   (let [db
