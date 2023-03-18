@@ -31,6 +31,10 @@
   (str/join ", " coll))
 
 
+(defn wrap-brackets [content]
+  (str \( content \)))
+
+
 (defn error!
   ([^String message]
    (throw (new Exception message)))
@@ -45,6 +49,7 @@
       (char ch-int))))
 
 
+;; TODO: improve it
 (defn read-query [^Reader rdr]
   (let [sb (new StringBuilder)
         re #"(?s)(.+)\{\%\s+endquery\s+\%\}$"]
@@ -65,7 +70,10 @@
     (subs 1)
 
     (str/ends-with? string "\"")
-    (subs 0 (-> string count dec dec))))
+    (subs 0 (-> string count dec dec))
+
+    :then
+    (str/trim)))
 
 
 (defn args->opts [args]
@@ -160,14 +168,13 @@
           func-name
           (-> query-name symbol)
 
+          ;; TODO: search tags
           vars
           (->> payload
                (re-seq #"(?m)\{\{\s*([^|\} ]+)")
                (mapv second)
                (mapv symbol)
                (set))
-
-          ;; TODO: {% ? sku %}
 
           template
           (parser/parse parser/parse-input (new StringReader payload))
@@ -202,8 +209,9 @@
                          (-query DB arg)
                          (error! "the default data source is not set"))))
 
-                    ;; the main entry point
-                    ([db {:keys [debug?] :as context}]
+                    ([db {:keys [debug?
+                                 sqlvec?] :as context}]
+
                      (binding [*context* context
                                *params* (new ArrayList)]
 
@@ -217,14 +225,18 @@
                                  (println query))
 
                                query-vec
-                               (into [query] (vec *params*))
+                               (into [query] (vec *params*))]
 
-                               result
-                               (jdbc-func db query-vec jdbc-opt)]
+                           (if sqlvec?
 
-                           (if count?
-                             (-> result first :next.jdbc/update-count)
-                             result)))))))]
+                             query-vec
+
+                             (let [result
+                                   (jdbc-func db query-vec jdbc-opt)]
+
+                               (if count?
+                                 (-> result first :next.jdbc/update-count)
+                                 result)))))))))]
 
       (.add *functions* fn-var)
 
@@ -258,82 +270,8 @@
        [:endquery])
 
 
-(parser/add-filter!
- :? (fn [value]
-      (.add *params* value)
-      "?"))
 
-
-(parser/add-filter!
- :! (fn [value]
-      (when (nil? value)
-        (error! "one of the required parameters is nil"))
-      (.add *params* value)
-      "?"))
-
-
-(parser/add-tag!
- :! (fn [[arg] context]
-      (if-some [value (get context (keyword arg))]
-        (do
-          (.add *params* value)
-          "?")
-        (error! "the `%s` required parameter is nil" arg))))
-
-
-(parser/add-tag!
- :? (fn [[arg] context]
-      (let [value
-            (get context (keyword arg))]
-        (.add *params* value)
-        "?")))
-
-
-(parser/add-filter!
- :SET (fn [mapping]
-        (join-comma
-         (for [[k v] mapping]
-           (do
-             (.add *params* v)
-             (format "%s = ?" (name k)))))))
-
-
-(parser/add-filter!
- :VALUES (fn [mapping]
-           (join-comma
-            (for [[k v] mapping]
-              (do
-                (.add *params* v)
-                "?")))))
-
-
-(defn wrap-brackets [content]
-  (str \( content \)))
-
-
-(parser/add-filter!
- :IN (fn [items]
-       (wrap-brackets
-        (join-comma
-         (for [item items]
-           (do
-             (.add *params* item)
-             "?"))))))
-
-
-(parser/add-tag!
- :IN (fn [[arg] context]
-       (let [items
-             (get context (keyword arg))]
-         (str "IN" \space
-              (wrap-brackets
-               (join-comma
-                (for [item items]
-                  (do
-                    (.add *params* item)
-                    "?"))))))))
-
-
+#_
 (parser/add-filter!
  :MVALUES (fn [rows]
             (join-comma
@@ -344,34 +282,130 @@
                     (.add *params* v)
                     "?")))))))
 
-(parser/add-filter!
- :EXCLUDED (fn [mapping]
-             (join-comma
-              (for [[k v] mapping]
-                (format "%s = EXCLUDED.%s"
-                        (name k)
-                        (name k))))))
 
 
-(parser/add-filter!
- :FIELDS
- (fn [coll]
-   (join-comma
-    (for [item coll]
-      (cond
 
-        (map-entry? item)
-        (-> item key name)
 
-        (keyword? item)
-        (name item)
 
-        (string? item)
-        item
 
-        :else
-        (error! "Wrong value type for comma join: %s" item))))))
+;;
+;; Tags
+;;
 
+(defn get-arg-value! [context ^String arg]
+  (let [value
+        (get context (keyword arg) ::miss)]
+    (if (identical? value ::miss)
+      (error! "parameter %s is not set in the context" arg)
+      value)))
+
+
+(parser/add-tag!
+ :COLUMNS (fn [[^String arg] context]
+            (let [value (get-arg-value! context arg)]
+
+              (wrap-brackets
+               (join-comma
+                (for [item value]
+                  (cond
+
+                    (map-entry? item)
+                    (-> item key name) ;; TODO: quote?
+
+                    (keyword? item)
+                    (name item) ;; TODO: quote?
+
+                    (string? item) ;; TODO: quote?
+                    item
+
+                    :else
+                    (error! "wrong column: %s" item))))))))
+
+
+(parser/add-tag!
+ :EXCLUDED (fn [[^String arg] context]
+             (let [^Map value (get-arg-value! context arg)]
+               (join-comma
+                (for [[k v] value]
+                  ;; TODO: quote?
+                  (format "%s = EXCLUDED.%s"
+                          (name k)
+                          (name k)))))))
+
+
+(parser/add-tag!
+ :SET (fn [[^String arg] context]
+        (let [^Map value (get-arg-value! context arg)]
+          (join-comma
+           (for [[k v] value]
+             (do
+               (.add *params* v)
+               ;; TODO: quote?
+               (format "%s = ?" (name k))))))))
+
+
+(parser/add-tag!
+ :VALUES (fn [[^Sting arg] context]
+           (let [^Map value (get-arg-value! context arg)]
+             (wrap-brackets
+              (join-comma
+               (for [[k v] value]
+                 (do
+                   (.add *params* v)
+                   "?")))))))
+
+
+(parser/add-tag!
+ :VALUES* (fn [[^Sting arg] context]
+            (let [^List rows
+                  (get-arg-value! context arg) ;; TODO: check if empty
+
+                  fn-keys
+                  (apply juxt (-> rows first keys))]
+
+              (join-comma
+               (for [row rows]
+                 (do
+                   (let [row-vals (fn-keys)
+                         ])
+
+                   (wrap-brackets
+
+                    #_
+                    (do
+                      (.add *params* v)
+                      "?")
+                    ))
+
+
+
+                 ))
+
+              )))
+
+
+(parser/add-tag!
+ :IN (fn [[^String arg] context]
+       (let [value (get-arg-value! context arg)]
+         (wrap-brackets
+          (join-comma
+           (for [item value]
+             (do
+               (.add *params* item)
+               "?")))))))
+
+
+(parser/add-tag!
+ :? (fn [[^String arg] context]
+      (let [value
+            (get-arg-value! context arg)]
+        (.add *params* value)
+        "?")))
+
+
+;;
+;; Public API
+;;
 
 (defn from-reader
   ([^Reader rdr]
