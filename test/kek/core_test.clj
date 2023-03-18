@@ -38,10 +38,8 @@
 
 
 (deftest test-get-items-by-ids
-
   (let [users
         (get-items-by-ids *db* {:ids [1 2 3]})]
-
     (is (= 1 users))))
 
 
@@ -51,6 +49,30 @@
           #"parameter `ids` is not set in the context"
         (get-items-by-ids *db* {}))))
 
+
+(deftest test-param-tag
+
+  (let [result
+        (test-limit *db* {:limit 42})]
+    (is (= result [{:one 1}])))
+
+  (is (thrown-with-msg?
+          Exception
+          #"parameter `limit` is not set in the context"
+        (test-limit *db* {:foo 42}))))
+
+
+(deftest test-insert-item
+
+  (let [item
+        (insert-item *db* {:fields {:sku "aaa"
+                                    :price 999
+                                    :title "TEST"}})]
+
+    (is (= 1 item))))
+
+
+;; TODO: test quote
 
 #_
 (deftest test-get-by-sku

@@ -397,8 +397,7 @@
 
 (parser/add-tag!
  :? (fn [[^String arg] context]
-      (let [value
-            (get-arg-value! context arg)]
+      (let [value (get-arg-value! context arg)]
         (.add *params* value)
         "?")))
 
