@@ -13,3 +13,6 @@ docker-down:
 
 docker-rm:
 	docker-compose rm --force
+
+docker-psql:
+	psql --port 25432 --host localhost -U test test

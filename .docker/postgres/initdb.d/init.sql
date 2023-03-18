@@ -5,6 +5,7 @@ create table items (
     price       integer,
     title       text,
     description text
+    "group-id"  integer
 );
 
 insert into items (sku, price, title, description)

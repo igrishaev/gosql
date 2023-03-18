@@ -63,12 +63,18 @@
 
 
 (deftest test-insert-item
-
   (let [item
         (insert-item *db* {:fields {:sku "aaa"
                                     :price 999
                                     :title "TEST"}})]
+    (is (= 1 item))))
 
+
+(deftest test-insert-quoting
+  (let [item
+        (insert-item *db* {:fields {:sku "abc3"
+                                    :group-id 1
+                                    :price 2}})]
     (is (= 1 item))))
 
 
@@ -168,19 +174,17 @@
 
            (dissoc item :id)))))
 
-#_
 (deftest test-upsert-item
 
-  (let [db
-        (jdbc/get-datasource db-spec)
-
-        item
-        (upsert-item db {:values {:sku "XXX2"
-                                  :title "NEW"
-                                  :price 999}})]
+  (let [item
+        (upsert-item *db* {:fields {:sku "XXX2"
+                                    :title "NEW"
+                                    :group-id 13
+                                    :price 999}})]
 
     (is (= {:sku "XXX2"
             :price 999
+            :group-id 13
             :title "NEW"
             :description "Test Item 2"}
            (dissoc item :id)))))

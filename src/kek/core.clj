@@ -1,5 +1,6 @@
 (ns kek.core
   (:import
+   clojure.lang.MapEntry
    java.util.regex.Pattern
    java.io.StringReader
    java.io.Reader
@@ -7,11 +8,11 @@
    java.io.LineNumberReader
    java.util.Map
    clojure.lang.Namespace
+   clojure.lang.Keyword
    java.util.List
    javax.sql.DataSource
    java.util.ArrayList)
   (:require
-   [kek.quote :as quote]
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as jdbc.rs]
    [clojure.string :as str]
@@ -25,6 +26,7 @@
 (def ^:dynamic ^List *functions* nil)
 (def ^:dynamic ^Namespace *namespace* nil)
 (def ^:dynamic ^DataSource *datasource* nil)
+(def ^:dynamic ^Keyword *quote-type* :ansi)
 
 
 (defn join-comma [coll]
@@ -82,19 +84,17 @@
 
     (if arg
 
+      ;; TODO: case
       (cond
 
-        (= arg ":pg")
-        (recur (assoc acc :quote :pg) args)
-
         (= arg ":ansi")
-        (recur (assoc acc :quote :ansi) args)
+        (recur (assoc acc :quote-type :ansi) args)
 
         (= arg ":mysql")
-        (recur (assoc acc :quote :mysql) args)
+        (recur (assoc acc :quote-type :mysql) args)
 
         (= arg ":mssql")
-        (recur (assoc acc :quote :mssql) args)
+        (recur (assoc acc :quote-type :mssql) args)
 
         (= arg ":count")
         (recur (assoc acc :count? true) args)
@@ -159,10 +159,10 @@
           args
 
           {:keys [one?
+                  quote-type
                   doc
                   builder-fn
-                  count?]
-           quote-type :quote}
+                  count?]}
           (args->opts args-rest)
 
           func-name
@@ -213,30 +213,29 @@
                                  sqlvec?] :as context}]
 
                      (binding [*context* context
-                               *params* (new ArrayList)]
+                               *params* (new ArrayList)
+                               *quote-type* (or quote-type *quote-type*)]
 
-                       (quote/with-quote-type quote-type
+                       (let [query
+                             (parser/render-template template context)
 
-                         (let [query
-                               (parser/render-template template context)
-
-                               _
-                               (when debug?
-                                 (println query))
-
-                               query-vec
-                               (into [query] (vec *params*))]
-
-                           (if sqlvec?
+                             _
+                             (when debug?
+                               (println query))
 
                              query-vec
+                             (into [query] (vec *params*))]
 
-                             (let [result
-                                   (jdbc-func db query-vec jdbc-opt)]
+                         (if sqlvec?
 
-                               (if count?
-                                 (-> result first :next.jdbc/update-count)
-                                 result)))))))))]
+                           query-vec
+
+                           (let [result
+                                 (jdbc-func db query-vec jdbc-opt)]
+
+                             (if count?
+                               (-> result first :next.jdbc/update-count)
+                               result))))))))]
 
       (.add *functions* fn-var)
 
@@ -282,10 +281,75 @@
                     (.add *params* v)
                     "?")))))))
 
+;;
+;; Quoting
+;;
+
+(defn needs-quoting? ^Boolean [^String column]
+  (some? (re-find #"-|/" column)))
 
 
+(defn quote-with ^String [^String column ^String start ^String end]
+  (when column
+    (str start column end)))
 
 
+(defn quote-column ^String [^String column]
+
+  (case *quote-type*
+
+    (:ansi :pg)
+    (quote-with column \" \")
+
+    :mysql
+    (quote-with column \` \`)
+
+    :mssql
+    (quote-with column \[ \])
+
+    ;; else
+    column))
+
+
+(defn maybe-quote ^String [^String column]
+  (if (needs-quoting? column)
+    (quote-column column)
+    column))
+
+
+(defprotocol Utils
+  (->column [x]))
+
+
+(extend-protocol Utils
+
+  Object
+  (->column [x]
+    (error! "cannot coerce value %x to a column"))
+
+  MapEntry
+  (->column [x]
+    (->column (key x)))
+
+  String
+  (->column [x]
+    x)
+
+  clojure.lang.Keyword
+  (->column [x]
+    (if-let [ns (namespace x)]
+      (format "%s/%s" ns (name x))
+      (name x)))
+
+  clojure.lang.Symbol
+  (->column [x]
+    (if-let [ns (namespace x)]
+      (format "%s/%s" ns (name x))
+      (name x))))
+
+
+(def ->column&quote
+  (comp maybe-quote ->column))
 
 
 ;;
@@ -302,35 +366,19 @@
 
 (parser/add-tag!
  :COLUMNS (fn [[^String arg] context]
-            (let [value (get-arg-value! context arg)]
-
+            (let [columns (get-arg-value! context arg)]
               (wrap-brackets
                (join-comma
-                (for [item value]
-                  (cond
-
-                    (map-entry? item)
-                    (-> item key name) ;; TODO: quote?
-
-                    (keyword? item)
-                    (name item) ;; TODO: quote?
-
-                    (string? item) ;; TODO: quote?
-                    item
-
-                    :else
-                    (error! "wrong column: %s" item))))))))
+                (map ->column&quote columns))))))
 
 
 (parser/add-tag!
  :EXCLUDED (fn [[^String arg] context]
-             (let [^Map value (get-arg-value! context arg)]
+             (let [values (get-arg-value! context arg)]
                (join-comma
-                (for [[k v] value]
-                  ;; TODO: quote?
-                  (format "%s = EXCLUDED.%s"
-                          (name k)
-                          (name k)))))))
+                (for [value values]
+                  (let [c (->column&quote value)]
+                    (format "%s = EXCLUDED.%s" c c)))))))
 
 
 (parser/add-tag!
