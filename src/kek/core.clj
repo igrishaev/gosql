@@ -366,6 +366,7 @@
 
 (parser/add-tag!
  :COLUMNS (fn [[^String arg] context]
+            ;; todo: check if empty
             (let [columns (get-arg-value! context arg)]
               (wrap-brackets
                (join-comma
@@ -374,6 +375,7 @@
 
 (parser/add-tag!
  :EXCLUDED (fn [[^String arg] context]
+             ;; todo: check if empty
              (let [values (get-arg-value! context arg)]
                (join-comma
                 (for [value values]
@@ -388,12 +390,12 @@
            (for [[k v] value]
              (do
                (.add *params* v)
-               ;; TODO: quote?
-               (format "%s = ?" (name k))))))))
+               (format "%s = ?" (->column&quote v))))))))
 
 
 (parser/add-tag!
  :VALUES (fn [[^Sting arg] context]
+           ;; todo: check if empty
            (let [^Map value (get-arg-value! context arg)]
              (wrap-brackets
               (join-comma
@@ -434,6 +436,7 @@
 
 (parser/add-tag!
  :IN (fn [[^String arg] context]
+       ;; todo: check if empty
        (let [value (get-arg-value! context arg)]
          (wrap-brackets
           (join-comma
