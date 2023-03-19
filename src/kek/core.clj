@@ -335,13 +335,7 @@
   (->column [x]
     x)
 
-  clojure.lang.Keyword
-  (->column [x]
-    (if-let [ns (namespace x)]
-      (format "%s/%s" ns (name x))
-      (name x)))
-
-  clojure.lang.Symbol
+  clojure.lang.Named
   (->column [x]
     (if-let [ns (namespace x)]
       (format "%s/%s" ns (name x))
@@ -489,8 +483,21 @@
         "?")))
 
 
+(defn quote-handler
+  [[^String arg ^String quote-type] ^Map context]
+  (let [value (get-arg-value! context arg)]
+    (if-let [qt (some-> quote-type keyword)]
+      (binding [*quote-type* qt]
+        (->column&quote value))
+      (->column&quote value))))
+
+
+(parser/add-tag! :quote quote-handler)
+
+
 ;; TODO: quote
 ;; TODO: sqlite
+;; TODO: keys tags arglists
 
 ;;
 ;; Public API

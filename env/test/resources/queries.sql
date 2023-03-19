@@ -53,13 +53,22 @@ returning *
 
 
 {% query upsert-items-array
-    :as-unqualified-maps
-%}
+    :as-unqualified-maps %}
 
 insert into items {% COLUMNS header %}
 values {% VALUES* rows %}
 on conflict (sku) do update
 set {% EXCLUDED header %}
 returning *
+
+{% endquery %}
+
+
+
+{% query select-item-pass-table :1 :as-unqualified-maps %}
+
+select * from {% quote table mysql %}
+where sku = {% ? sku %}
+limit 1
 
 {% endquery %}
