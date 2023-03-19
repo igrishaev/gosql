@@ -406,13 +406,17 @@
 
 (parser/add-tag!
  :VALUES (fn [[^Sting arg] context]
-           ;; todo: check if empty
-           (let [^Map value (get-arg-value! context arg)]
+           (let [values
+                 (get-arg-value! context arg)]
+             (when (empty? values)
+               (error! "the `%s` values are empty" arg))
              (wrap-brackets
               (join-comma
-               (for [[k v] value]
+               (for [value values]
                  (do
-                   (.add *params* v)
+                   (if (map-entry?)
+                     (.add *params* (val value))
+                     (.add *params* value))
                    "?")))))))
 
 
