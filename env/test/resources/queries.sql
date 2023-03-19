@@ -51,6 +51,22 @@ returning *
 
 insert into items {% COLUMNS* rows %}
 values {% VALUES* rows %}
+on conflict {% COLUMNS conflict %} do update
+set {% EXCLUDED* rows %}
+returning *
+
+{% endquery %}
+
+
+
+{% query upsert-items-array
+    :as-unqualified-maps
+%}
+
+insert into items {% COLUMNS header %}
+values {% VALUES* rows %}
+on conflict (sku) do update
+set {% EXCLUDED header %}
 returning *
 
 {% endquery %}

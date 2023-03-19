@@ -79,7 +79,8 @@
 
 (deftest test-upsert-multi
   (let [item
-        (upsert-items *db* {:rows [{:price 1
+        (upsert-items *db* {:conflict [:sku]
+                            :rows [{:price 1
                                     :title "item1"
                                     :sku "foo1a"
                                     :group-id 1}
@@ -205,6 +206,22 @@
             :description "Test Item 2"}
            (dissoc item :id)))))
 
+
+
+(deftest test-upsert-items-array
+
+  (let [matrix
+        [[:sku  :title :price :group-id]
+         ["X01" "X01"  101    1001]
+         ["X02" "X02"  102    1002]
+         ["X03" "X03"  103    1003]]
+
+        result
+        (upsert-items-array *db*
+                            {:header (first matrix)
+                             :rows (rest matrix)})]
+
+    (is (= 1 result))))
 
 #_
 (deftest test-get-all-items

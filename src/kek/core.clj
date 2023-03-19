@@ -364,34 +364,55 @@
       value)))
 
 
-(parser/add-tag!
- :COLUMNS (fn [[^String arg] context]
-            (let [columns (get-arg-value! context arg)]
-              (when (empty? columns)
-                (error! "empty columns `%s`: %s" arg columns))
-              (wrap-brackets
-               (join-comma
-                (map ->column&quote columns))))))
+(defn columns-handler
+  [[^String arg] ^Map context]
+  (let [columns (get-arg-value! context arg)]
+    (when (empty? columns)
+      (error! "empty columns `%s`: %s" arg columns))
+    (wrap-brackets
+     (join-comma
+      (map ->column&quote columns)))))
+
+
+(parser/add-tag! :COLUMNS columns-handler)
+
+
+(defn columns*-handler
+  [[^String arg] ^Map context]
+  (let [^List rows (get-arg-value! context arg)]
+    (when (empty? rows)
+      (error! "empty rows `%s`: %s" arg rows))
+    (wrap-brackets
+     (join-comma
+      (map ->column&quote (first rows))))))
+
+
+(parser/add-tag! :COLUMNS* columns*-handler)
+
+
+(defn excluded-handler
+  [[^String arg] ^Map context]
+  (let [values (get-arg-value! context arg)]
+    (when (empty? values)
+      (error! "values `%s` are empty" arg))
+    (join-comma
+     (for [value values]
+       (let [c (->column&quote value)]
+         (format "%s = EXCLUDED.%s" c c))))))
+
+
+(parser/add-tag! :EXCLUDED excluded-handler)
 
 
 (parser/add-tag!
- :COLUMNS* (fn [[^String arg] context]
-             (let [^List rows (get-arg-value! context arg)]
-               (when (empty? rows)
-                 (error! "empty rows `%s`: %s" arg rows))
-               (wrap-brackets
+ :EXCLUDED* (fn [[^String arg] context]
+              (let [^List rows (get-arg-value! context arg)]
+                (when (empty? rows)
+                  (error! "excluded values `%s` are empty" arg))
                 (join-comma
-                 (map ->column&quote (first rows)))))))
-
-
-(parser/add-tag!
- :EXCLUDED (fn [[^String arg] context]
-             ;; todo: check if empty
-             (let [values (get-arg-value! context arg)]
-               (join-comma
-                (for [value values]
-                  (let [c (->column&quote value)]
-                    (format "%s = EXCLUDED.%s" c c)))))))
+                 (for [value (first rows)]
+                   (let [c (->column&quote value)]
+                     (format "%s = EXCLUDED.%s" c c)))))))
 
 
 (parser/add-tag!
@@ -409,7 +430,7 @@
            (let [values
                  (get-arg-value! context arg)]
              (when (empty? values)
-               (error! "the `%s` values are empty" arg))
+               (error! "values `%s` are empty" arg))
              (wrap-brackets
               (join-comma
                (for [value values]
@@ -422,16 +443,24 @@
 
 (parser/add-tag!
  :VALUES* (fn [[^Sting arg] context]
-            ;; TODO: check if empty
             (let [^List rows
                   (get-arg-value! context arg)
 
-                  fn-keys
-                  (apply juxt (-> rows first keys))]
+                  _
+                  (when (empty? rows)
+                    (error! "rows `%s` are empty" arg))
+
+                  row-first
+                  (first rows)
+
+                  fn-vals
+                  (if (map? row-first)
+                    (apply juxt (keys row-first))
+                    identity)]
 
               (join-comma
                (for [row rows]
-                 (let [row-vals (fn-keys row)]
+                 (let [row-vals (fn-vals row)]
                    (wrap-brackets
                     (join-comma
                      (for [v row-vals]
@@ -442,8 +471,9 @@
 
 (parser/add-tag!
  :IN (fn [[^String arg] context]
-       ;; todo: check if empty
        (let [value (get-arg-value! context arg)]
+         (when (empty? value)
+           (error! "IN argument `%s` is empty" arg))
          (wrap-brackets
           (join-comma
            (for [item value]
@@ -458,6 +488,9 @@
         (.add *params* value)
         "?")))
 
+
+;; TODO: quote
+;; TODO: sqlite
 
 ;;
 ;; Public API
