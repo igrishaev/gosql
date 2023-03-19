@@ -5,16 +5,6 @@
    [kek.core :as kek]))
 
 
-(def ^:dynamic *db* nil)
-
-
-(use-fixtures :once
-  (fn [t]
-    (binding [*db*
-              (jdbc/get-datasource db-spec)]
-      (t))))
-
-
 (def db-spec
   {:dbtype "postgres"
    :dbname "test"
@@ -23,6 +13,15 @@
    :user "test"
    :password "test"})
 
+
+(def ^:dynamic *db* nil)
+
+
+(use-fixtures :once
+  (fn [t]
+    (binding [*db*
+              (jdbc/get-datasource db-spec)]
+      (t))))
 
 #_
 (def -ds
@@ -75,6 +74,23 @@
         (insert-item *db* {:fields {:sku "abc3"
                                     :group-id 1
                                     :price 2}})]
+    (is (= 1 item))))
+
+
+(deftest test-upsert-multi
+  (let [item
+        (upsert-items *db* {:rows [{:price 1
+                                    :title "item1"
+                                    :sku "foo1a"
+                                    :group-id 1}
+                                   {:price 2
+                                    :sku "foo2a"
+                                    :group-id 2
+                                    :title "item2"}
+                                   {:title "item3"
+                                    :price 3
+                                    :group-id 3
+                                    :sku "foo3a"}]})]
     (is (= 1 item))))
 
 

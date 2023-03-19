@@ -43,3 +43,14 @@ on conflict (sku) do update set {% EXCLUDED fields %}
 returning *
 
 {% endquery %}
+
+
+{% query upsert-items
+    :as-unqualified-maps
+%}
+
+insert into items {% COLUMNS* rows %}
+values {% VALUES* rows %}
+returning *
+
+{% endquery %}

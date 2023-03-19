@@ -366,11 +366,22 @@
 
 (parser/add-tag!
  :COLUMNS (fn [[^String arg] context]
-            ;; todo: check if empty
             (let [columns (get-arg-value! context arg)]
+              (when (empty? columns)
+                (error! "empty columns `%s`: %s" arg columns))
               (wrap-brackets
                (join-comma
                 (map ->column&quote columns))))))
+
+
+(parser/add-tag!
+ :COLUMNS* (fn [[^String arg] context]
+             (let [^List rows (get-arg-value! context arg)]
+               (when (empty? rows)
+                 (error! "empty rows `%s`: %s" arg rows))
+               (wrap-brackets
+                (join-comma
+                 (map ->column&quote (first rows)))))))
 
 
 (parser/add-tag!
@@ -407,31 +418,22 @@
 
 (parser/add-tag!
  :VALUES* (fn [[^Sting arg] context]
+            ;; TODO: check if empty
             (let [^List rows
-                  (get-arg-value! context arg) ;; TODO: check if empty
+                  (get-arg-value! context arg)
 
                   fn-keys
                   (apply juxt (-> rows first keys))]
 
               (join-comma
                (for [row rows]
-                 (do
-                   (let [row-vals (fn-keys)
-                         ])
-
+                 (let [row-vals (fn-keys row)]
                    (wrap-brackets
-
-                    #_
-                    (do
-                      (.add *params* v)
-                      "?")
-                    ))
-
-
-
-                 ))
-
-              )))
+                    (join-comma
+                     (for [v row-vals]
+                       (do
+                         (.add *params* v)
+                         "?"))))))))))
 
 
 (parser/add-tag!
