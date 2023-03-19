@@ -10,9 +10,7 @@ where id in {% IN ids %}
 {% endquery %}
 
 
-{% query test-limit
-    :as-unqualified-maps
-%}
+{% query test-limit :as-unqualified-maps %}
 
 select 1 as one
 limit {% ? limit %}
@@ -32,10 +30,7 @@ returning *
 {% endquery %}
 
 
-{% query upsert-item
-    :as-unqualified-maps
-    :one
-%}
+{% query upsert-item :one :as-unqualified-maps %}
 
 insert into items {% COLUMNS fields %}
 values {% VALUES fields %}
@@ -45,9 +40,7 @@ returning *
 {% endquery %}
 
 
-{% query upsert-items
-    :as-unqualified-maps
-%}
+{% query upsert-items :as-unqualified-maps %}
 
 insert into items {% COLUMNS* rows %}
 values {% VALUES* rows %}
