@@ -25,6 +25,8 @@
     [[org.clojure/clojure "1.11.1"]
      [org.postgresql/postgresql "42.5.3"]
 
+     [org.xerial/sqlite-jdbc "3.41.0.0"]
+
 
      ;; bench
      [com.layerware/hugsql-core "0.5.3"]

@@ -13,6 +13,9 @@
 
 
 (def db-spec
+  {:dbtype "sqlite" :dbname ":memory:"}
+
+  #_
   {:dbtype "postgres"
    :dbname "test"
    :host "localhost"
@@ -21,9 +24,11 @@
    :password "test"})
 
 
+#_
 (hugsql/def-db-fns "hugsql.sql")
 
 (def ^:dynamic *db* nil)
+(def ^:dynamic *conn* nil)
 
 
 
@@ -58,13 +63,36 @@
      (honey-get-items-by-sku-list db ["aaa" "bbb" "ccc"]))))
 
 
+#_
 
+(use-fixtures :once)
 
+#_
 (use-fixtures :once
   (fn [t]
     (binding [*db*
               (jdbc/get-datasource db-spec)]
       (t))))
+
+
+(use-fixtures :each
+  (fn [t]
+    (let [db (jdbc/get-datasource db-spec)]
+      (jdbc/on-connection [conn db]
+
+
+
+                          (jdbc/execute! conn ["create table items (sku text unique, title text, price integer, \"group-id\" integer)"])
+                          (jdbc/execute! conn ["insert into items (sku, title, price, \"group-id\")
+                          values ('x1', 'Item 1', 10, 1), ('x2', 'Item 2', 20, 2), ('x3', 'Item 3', 30, 3);"]
+                                         )
+                          (binding [*conn* conn]
+                            (t))))))
+
+
+(deftest test-foo
+  (is (= 1 (jdbc/execute! *conn* ["select * from items"])))
+  )
 
 #_
 (def -ds
