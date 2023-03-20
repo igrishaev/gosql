@@ -107,7 +107,7 @@
                     jdbc.rs/as-maps)
              args)
 
-      "as-unqualified-maps"
+      ":as-unqualified-maps"
       (recur (assoc acc
                     :builder-fn
                     jdbc.rs/as-unqualified-maps)

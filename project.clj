@@ -19,6 +19,17 @@
    {:resource-paths ["env/test/resources"]}
 
    :dev
-   {:dependencies
+   {:resource-paths ["env/dev/resources"]
+
+    :dependencies
     [[org.clojure/clojure "1.11.1"]
-     [org.postgresql/postgresql "42.5.3"]]}})
+     [org.postgresql/postgresql "42.5.3"]
+
+
+     ;; bench
+     [com.layerware/hugsql-core "0.5.3"]
+     [com.layerware/hugsql-adapter-next-jdbc "0.5.3"]
+
+     [com.github.seancorfield/honeysql "2.4.980"]
+
+     ]}})

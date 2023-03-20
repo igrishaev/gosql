@@ -72,3 +72,19 @@ where sku = {% ? sku %}
 limit 1
 
 {% endquery %}
+
+
+{% query go-get-item-by-sku :1 :as-unqualified-maps %}
+
+select * from items
+where sku = {% ? sku %}
+
+{% endquery %}
+
+
+{% query go-get-items-by-sku-list :as-unqualified-maps %}
+
+select * from items
+where sku in {% IN sku-list %}
+
+{% endquery %}
