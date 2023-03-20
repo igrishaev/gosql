@@ -51,7 +51,6 @@
       (char ch-int))))
 
 
-;; TODO: improve it
 (defn read-query [^Reader rdr]
   (let [sb (new StringBuilder)
         re #"(?s)(.+)\{\%\s+endquery\s+\%\}$"]
@@ -62,7 +61,7 @@
           (if-let [[_ query] (re-matches re (str sb))]
             query
             (recur)))
-        (error! "the reader has been closed before reaching the end of the query")))))
+        (error! "the reader has been closed before reaching the end of the 'endquery' tag")))))
 
 
 (defn clean-docstring [^String string]
@@ -80,69 +79,76 @@
 
 (defn args->opts [args]
   (loop [acc {}
-         [arg & args] args]
+         [^String arg & args] args]
 
-    (if arg
+    (case arg
 
-      ;; TODO: case
-      (cond
+      nil
+      acc
 
-        (= arg ":ansi")
-        (recur (assoc acc :quote-type :ansi) args)
+      ":ansi"
+      (recur (assoc acc :quote-type :ansi) args)
 
-        (= arg ":mysql")
-        (recur (assoc acc :quote-type :mysql) args)
+      ":mysql"
+      (recur (assoc acc :quote-type :mysql) args)
 
-        (= arg ":mssql")
-        (recur (assoc acc :quote-type :mssql) args)
+      ":mssql"
+      (recur (assoc acc :quote-type :mssql) args)
 
-        (= arg ":count")
-        (recur (assoc acc :count? true) args)
+      ":count"
+      (recur (assoc acc :count? true) args)
 
-        (or (= arg ":1") (= arg ":one"))
-        (recur (assoc acc :one? true) args)
+      (":1" ":one")
+      (recur (assoc acc :one? true) args)
 
-        (= arg ":as-maps")
-        (recur (assoc acc
-                      :builder-fn
-                      jdbc.rs/as-maps)
-               args)
+      ":as-maps"
+      (recur (assoc acc
+                    :builder-fn
+                    jdbc.rs/as-maps)
+             args)
 
-        (= arg ":as-unqualified-maps")
-        (recur (assoc acc
-                      :builder-fn
-                      jdbc.rs/as-unqualified-maps)
-               args)
+      "as-unqualified-maps"
+      (recur (assoc acc
+                    :builder-fn
+                    jdbc.rs/as-unqualified-maps)
+             args)
 
-        (= arg ":as-unqualified-kebab-maps")
-        (recur (assoc acc
-                      :builder-fn
-                      jdbc.rs/as-unqualified-kebab-maps)
-               args)
+      ":as-unqualified-kebab-maps"
+      (recur (assoc acc
+                    :builder-fn
+                    jdbc.rs/as-unqualified-kebab-maps)
+             args)
 
-        (= arg ":as-arrays")
-        (recur (assoc acc
-                      :builder-fn
-                      jdbc.rs/as-arrays)
-               args)
+      ":as-arrays"
+      (recur (assoc acc
+                    :builder-fn
+                    jdbc.rs/as-arrays)
+             args)
 
-        (= arg ":doc")
-        (let [[doc & args] args]
-          (if (string? doc)
-            (let [doc-clean
-                  (clean-docstring doc)]
-              (recur (assoc acc :doc doc-clean) args))
-            (error! format "the :doc arg %s is not a string!" arg)))
+      ":doc"
+      (let [[doc & args] args]
+        (if (string? doc)
+          (let [doc-clean
+                (clean-docstring doc)]
+            (recur (assoc acc :doc doc-clean) args))
+          (error! format "the :doc arg %s is not a string!" arg)))
 
-        :else
-        (recur acc args))
-
-      acc)))
+      ;; else
+      (recur acc args))))
 
 
 
 (defn datasource? [x]
   (instance? javax.sql.DataSource x))
+
+
+
+(defn tag->arg ^String [^String tag-content]
+  (some-> tag-content
+          (str/trim)
+          (str/split #"\s+")
+          (second)
+          (str/trim)))
 
 
 (defn query-handler [args tag-content render rdr]
@@ -168,13 +174,25 @@
           func-name
           (-> query-name symbol)
 
-          ;; TODO: search tags
           vars
           (->> payload
                (re-seq #"(?m)\{\{\s*([^|\} ]+)")
-               (mapv second)
-               (mapv symbol)
-               (set))
+               (map second))
+
+          tags
+          (->> payload
+               (re-seq #"(?m)\{%(.+?)%\}")
+               (map second)
+               (map tag->arg))
+
+          context-keys
+          (-> #{}
+              (into vars)
+              (into tags)
+              (sort)
+              (->>
+               (remove nil?)
+               (map symbol)))
 
           template
           (parser/parse parser/parse-input (new StringReader payload))
@@ -209,7 +227,7 @@
                          (-query DB arg)
                          (error! "the default data source is not set"))))
 
-                    ([db {:keys [debug?
+                    ([db {:keys [print?
                                  sqlvec?] :as context}]
 
                      (binding [*context* context
@@ -220,7 +238,7 @@
                              (parser/render-template template context)
 
                              _
-                             (when debug?
+                             (when print?
                                (println query))
 
                              query-vec
@@ -247,11 +265,10 @@
                    :file *file-name*
                    :arglists
                    (list []
-                         [{:as 'context
-                           :keys (into ['debug?] vars)}]
+                         [{:as 'context}]
                          ['db]
                          ['db {:as 'context
-                               :keys (into ['debug?] vars)}]))
+                               :keys (into ['print? 'sqlvec?] context-keys)}]))
 
       (fn [_]
         nil))))
@@ -268,18 +285,6 @@
        :query
        [:endquery])
 
-
-
-#_
-(parser/add-filter!
- :MVALUES (fn [rows]
-            (join-comma
-             (for [row rows]
-               (join-comma
-                (for [[_ v] row]
-                  (do
-                    (.add *params* v)
-                    "?")))))))
 
 ;;
 ;; Quoting
@@ -398,89 +403,107 @@
 (parser/add-tag! :EXCLUDED excluded-handler)
 
 
-(parser/add-tag!
- :EXCLUDED* (fn [[^String arg] context]
-              (let [^List rows (get-arg-value! context arg)]
-                (when (empty? rows)
-                  (error! "excluded values `%s` are empty" arg))
-                (join-comma
-                 (for [value (first rows)]
-                   (let [c (->column&quote value)]
-                     (format "%s = EXCLUDED.%s" c c)))))))
+(defn excluded*-handler
+  [[^String arg] ^Map context]
+  (let [^List rows (get-arg-value! context arg)]
+    (when (empty? rows)
+      (error! "excluded values `%s` are empty" arg))
+    (join-comma
+     (for [value (first rows)]
+       (let [c (->column&quote value)]
+         (format "%s = EXCLUDED.%s" c c))))))
 
 
-(parser/add-tag!
- :SET (fn [[^String arg] context]
-        (let [^Map value (get-arg-value! context arg)]
-          (join-comma
-           (for [[k v] value]
-             (do
-               (.add *params* v)
-               (format "%s = ?" (->column&quote v))))))))
+(parser/add-tag! :EXCLUDED* excluded*-handler)
 
 
-(parser/add-tag!
- :VALUES (fn [[^Sting arg] context]
-           (let [values
-                 (get-arg-value! context arg)]
-             (when (empty? values)
-               (error! "values `%s` are empty" arg))
-             (wrap-brackets
-              (join-comma
-               (for [value values]
-                 (do
-                   (if (map-entry?)
-                     (.add *params* (val value))
-                     (.add *params* value))
-                   "?")))))))
+(defn set-handler
+  [[^String arg] ^Map context]
+  (let [^Map value (get-arg-value! context arg)]
+    (join-comma
+     (for [[k v] value]
+       (do
+         (.add *params* v)
+         (format "%s = ?" (->column&quote v)))))))
 
 
-(parser/add-tag!
- :VALUES* (fn [[^Sting arg] context]
-            (let [^List rows
-                  (get-arg-value! context arg)
-
-                  _
-                  (when (empty? rows)
-                    (error! "rows `%s` are empty" arg))
-
-                  row-first
-                  (first rows)
-
-                  fn-vals
-                  (if (map? row-first)
-                    (apply juxt (keys row-first))
-                    identity)]
-
-              (join-comma
-               (for [row rows]
-                 (let [row-vals (fn-vals row)]
-                   (wrap-brackets
-                    (join-comma
-                     (for [v row-vals]
-                       (do
-                         (.add *params* v)
-                         "?"))))))))))
+(parser/add-tag! :SET set-handler)
 
 
-(parser/add-tag!
- :IN (fn [[^String arg] context]
-       (let [value (get-arg-value! context arg)]
-         (when (empty? value)
-           (error! "IN argument `%s` is empty" arg))
+(defn values-handler
+  [[^Sting arg] ^Map context]
+  (let [values
+        (get-arg-value! context arg)]
+    (when (empty? values)
+      (error! "values `%s` are empty" arg))
+    (wrap-brackets
+     (join-comma
+      (for [value values]
+        (do
+          (if (map-entry?)
+            (.add *params* (val value))
+            (.add *params* value))
+          "?"))))))
+
+
+(parser/add-tag! :VALUES values-handler)
+
+
+(defn values*-handler
+  [[^Sting arg] ^Map context]
+  (let [^List rows
+        (get-arg-value! context arg)
+
+        _
+        (when (empty? rows)
+          (error! "rows `%s` are empty" arg))
+
+        row-first
+        (first rows)
+
+        fn-vals
+        (if (map? row-first)
+          (apply juxt (keys row-first))
+          identity)]
+
+    (join-comma
+     (for [row rows]
+       (let [row-vals (fn-vals row)]
          (wrap-brackets
           (join-comma
-           (for [item value]
+           (for [v row-vals]
              (do
-               (.add *params* item)
-               "?")))))))
+               (.add *params* v)
+               "?")))))))))
 
 
-(parser/add-tag!
- :? (fn [[^String arg] context]
-      (let [value (get-arg-value! context arg)]
-        (.add *params* value)
-        "?")))
+(parser/add-tag! :VALUES* values*-handler)
+
+
+(defn in-handler
+  [[^String arg] ^Map context]
+  (let [value (get-arg-value! context arg)]
+    (when (empty? value)
+      (error! "IN argument `%s` is empty" arg))
+    (wrap-brackets
+     (join-comma
+      (for [item value]
+        (do
+          (.add *params* item)
+          "?"))))))
+
+
+(parser/add-tag! :IN in-handler)
+
+
+(defn ?-handler
+  [[^String arg] ^Map context]
+  (let [value (get-arg-value! context arg)]
+    (.add *params* value)
+    "?"))
+
+
+(parser/add-tag! :? ?-handler)
 
 
 (defn quote-handler
@@ -494,10 +517,6 @@
 
 (parser/add-tag! :quote quote-handler)
 
-
-;; TODO: quote
-;; TODO: sqlite
-;; TODO: keys tags arglists
 
 ;;
 ;; Public API

@@ -101,6 +101,3 @@
                                 {:table :items
                                  :sku "aaa"})]
     (is (= 1 item))))
-
-
-;; TODO: test quote

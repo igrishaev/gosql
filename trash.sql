@@ -90,3 +90,10 @@ select * from {{ table | quote }}
 where id {% IN ids %}
 
 {% endquery %}
+
+
+[nil
+ {:tag {:tag-type :expr, :tag-name :quote, :args ("table" "mysql")}}
+ nil
+ {:tag {:tag-type :expr, :tag-name :if, :args ("foo")}}
+ nil]
