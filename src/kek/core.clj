@@ -1,22 +1,22 @@
 (ns kek.core
   (:import
+   clojure.lang.Keyword
    clojure.lang.MapEntry
-   java.util.regex.Pattern
-   java.io.StringReader
-   java.io.Reader
+   clojure.lang.Namespace
    java.io.File
    java.io.LineNumberReader
-   java.util.Map
-   clojure.lang.Namespace
-   clojure.lang.Keyword
+   java.io.Reader
+   java.io.StringReader
+   java.util.ArrayList
    java.util.List
-   javax.sql.DataSource
-   java.util.ArrayList)
+   java.util.Map
+   java.util.regex.Pattern
+   javax.sql.DataSource)
   (:require
+   [clojure.java.io :as io]
+   [clojure.string :as str]
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as jdbc.rs]
-   [clojure.string :as str]
-   [clojure.java.io :as io]
    [selmer.parser :as parser]))
 
 
@@ -570,10 +570,3 @@
 
   ([path options]
    (from-file (io/file path))))
-
-
-#_
-(from-resource "queries.sql")
-
-#_
-(from-file-path "resources/queries.sql")
