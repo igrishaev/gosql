@@ -7,3 +7,4 @@ rename the project
 test sqlvec?
 sql/query tag?
 test mount
+in vs values?

@@ -29,7 +29,7 @@ limit {% sql/? limit %}
     :one %}
 
 insert into items ({% sql/columns fields %})
-values {% sql/values fields %}
+values ({% sql/values fields %})
 returning *
 
 {% endquery %}
@@ -38,7 +38,7 @@ returning *
 {% query upsert-item :one :as-unqualified-maps %}
 
 insert into items ({% sql/columns fields %})
-values {% sql/values fields %}
+values ({% sql/values fields %})
 on conflict (sku) do update set {% sql/excluded fields %}
 returning *
 
@@ -118,6 +118,6 @@ where title = {% sql/? title %}
 
 {% query fn-test-delete-count :count %}
 
-delete from items where sku in {% sql/in sku-list %}
+delete from items where sku in ({% sql/values sku-list %})
 
 {% endquery %}

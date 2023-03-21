@@ -435,14 +435,13 @@
         (get-arg-value! context arg)]
     (when (empty? values)
       (error! "values `%s` are empty" arg))
-    (wrap-brackets
-     (join-comma
-      (for [value values]
-        (do
-          (if (map-entry? value)
-            (.add *params* (val value))
-            (.add *params* value))
-          "?"))))))
+    (join-comma
+     (for [value values]
+       (do
+         (if (map-entry? value)
+           (.add *params* (val value))
+           (.add *params* value))
+         "?")))))
 
 
 (parser/add-tag! :sql/values values-handler)

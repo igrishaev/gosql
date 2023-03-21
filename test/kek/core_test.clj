@@ -39,7 +39,7 @@
   (is (vector? funcs)))
 
 
-(deftest test-get-items-by-ids
+(deftest test-get-all-items
   (let [items
         (get-all-items *conn*)]
     (is (= 3 (count items)))
@@ -54,7 +54,7 @@
   (is (thrown-with-msg?
           Exception
           #"parameter `ids` is not set in the context"
-        (get-items-by-ids *conn* {}))))
+          (get-items-by-ids *conn* {}))))
 
 
 (deftest test-param-tag
@@ -167,7 +167,7 @@
     (is (= {:ns (the-ns 'kek.core-test)
             :name 'fn-test-arglists
             :column 1
-            :line 102
+            :line 106
             :arglists
             '([]
               [{:as context}]
