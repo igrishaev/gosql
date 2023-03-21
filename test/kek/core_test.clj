@@ -209,3 +209,10 @@
             :price 10
             :group-id 1}
            (first items)))))
+
+
+(deftest test-fn-delete-count
+  (let [result
+        (fn-test-delete-count *conn*
+                              {:sku-list ["x1" "x3" "x5"]})]
+    (is (= 2 result))))

@@ -1,4 +1,3 @@
-replace pg to sqlite ?
 tests for tags
 tests for quoting
 tests for arglist
@@ -6,5 +5,5 @@ tests for query
 tests for default db
 rename the project
 test sqlvec?
-drop pg/docker
 sql/query tag?
+test mount

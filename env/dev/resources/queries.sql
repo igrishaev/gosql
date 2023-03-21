@@ -114,3 +114,10 @@ where title = {% sql/? title %}
 {% endif %}
 
 {% endquery %}
+
+
+{% query fn-test-delete-count :count %}
+
+delete from items where sku in {% sql/in sku-list %}
+
+{% endquery %}
