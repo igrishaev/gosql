@@ -1,174 +1,123 @@
 (ns kek.core-test
   (:require
-
-   ;; bench
-   [hugsql.core :as hugsql]
-   [hugsql.adapter.next-jdbc :as next-adapter]
-   [next.jdbc.result-set :as rs]
-   [honey.sql :as honey]
-
    [next.jdbc :as jdbc]
    [clojure.test :refer [deftest is use-fixtures]]
    [kek.core :as kek]))
 
 
 (def db-spec
-  {:dbtype "sqlite" :dbname ":memory:"}
-
-  #_
-  {:dbtype "postgres"
-   :dbname "test"
-   :host "localhost"
-   :port 25432
-   :user "test"
-   :password "test"})
+  {:dbtype "sqlite" :dbname ":memory:"})
 
 
-#_
-(hugsql/def-db-fns "hugsql.sql")
-
-(def ^:dynamic *db* nil)
 (def ^:dynamic *conn* nil)
-
-
-
-#_
-(time
- (dotimes [_ 500]
-   (let [db (jdbc/get-datasource db-spec)]
-     (go-get-item-by-sku db {:sku "aaa"}))))
-
-
-#_
-(time
- (let [db (jdbc/get-datasource db-spec)]
-   (dotimes [_ 500]
-     (hug-get-items-by-sku-list db {:sku-list ["aaa" "bbb" "ccc"]}))))
-
-
-#_
-(defn honey-get-items-by-sku-list [db sku-list]
-  (jdbc/execute! db
-                 (honey/format
-                  {:select [:*]
-                   :from [:items]
-                   :where [:in :sku sku-list]})
-                 {:builder-fn rs/as-unqualified-maps}))
-
-
-#_
-(time
- (let [db (jdbc/get-datasource db-spec)]
-   (dotimes [_ 500]
-     (honey-get-items-by-sku-list db ["aaa" "bbb" "ccc"]))))
-
-
-#_
-
-(use-fixtures :once)
-
-#_
-(use-fixtures :once
-  (fn [t]
-    (binding [*db*
-              (jdbc/get-datasource db-spec)]
-      (t))))
 
 
 (use-fixtures :each
   (fn [t]
     (let [db (jdbc/get-datasource db-spec)]
       (jdbc/on-connection [conn db]
-
-
-
-                          (jdbc/execute! conn ["create table items (sku text unique, title text, price integer, \"group-id\" integer)"])
-                          (jdbc/execute! conn ["insert into items (sku, title, price, \"group-id\")
-                          values ('x1', 'Item 1', 10, 1), ('x2', 'Item 2', 20, 2), ('x3', 'Item 3', 30, 3);"]
-                                         )
-                          (binding [*conn* conn]
-                            (t))))))
-
-
-(deftest test-foo
-  (is (= 1 (jdbc/execute! *conn* ["select * from items"])))
-  )
-
-#_
-(def -ds
-  p(jdbc/get-datasource db-spec))
+        (jdbc/execute! conn ["create table items (sku text unique, title text, price integer, \"group-id\" integer)"])
+        (jdbc/execute! conn ["insert into items (sku, title, price, \"group-id\")
+                              values ('x1', 'Item 1', 10, 1),
+                                     ('x2', 'Item 2', 20, 2),
+                                     ('x3', 'Item 3', 30, 3);"])
+        (binding [*conn* conn]
+          (t))))))
 
 
 (def funcs
-  (kek/from-resource "queries.sql" #_{:db -ds}))
+  (kek/from-resource "queries.sql"))
 
 
-(deftest test-func-count
-  (is (= 2 (count funcs))))
+(deftest test-load-resutl
+  (is (vector? funcs)))
 
 
 (deftest test-get-items-by-ids
-  (let [users
-        (get-items-by-ids *db* {:ids [1 2 3]})]
-    (is (= 1 users))))
+  (let [items
+        (get-all-items *conn*)]
+    (is (= 3 (count items)))
+    (is (= {:sku "x1"
+            :title "Item 1"
+            :price 10
+            :group-id 1}
+           (first items)))))
 
 
 (deftest test-in-missing
   (is (thrown-with-msg?
           Exception
           #"parameter `ids` is not set in the context"
-        (get-items-by-ids *db* {}))))
+        (get-items-by-ids *conn* {}))))
 
 
 (deftest test-param-tag
 
   (let [result
-        (test-limit *db* {:limit 42})]
+        (test-limit *conn* {:limit 42})]
     (is (= result [{:one 1}])))
 
   (is (thrown-with-msg?
           Exception
           #"parameter `limit` is not set in the context"
-        (test-limit *db* {:foo 42}))))
+        (test-limit *conn* {:foo 42}))))
 
 
 (deftest test-insert-item
   (let [item
-        (insert-item *db* {:fields {:sku "aaa"
-                                    :price 999
-                                    :title "TEST"}})]
-    (is (= 1 item))))
+        (insert-item *conn* {:fields {:sku "aaa"
+                                      :price 999
+                                      :title "TEST"}})]
+    (is (= {:sku "aaa"
+            :title "TEST"
+            :price 999
+            :group-id nil}
+           item))))
 
 
 (deftest test-insert-quoting
   (let [item
-        (insert-item *db* {:fields {:sku "abc3"
-                                    :group-id 1
-                                    :price 2}})]
-    (is (= 1 item))))
+        (insert-item *conn* {:fields {:sku "abc3"
+                                      :group-id 1
+                                      :price 2}})]
+    (is (= {:sku "abc3"
+            :title nil
+            :price 2
+            :group-id 1}
+           item))))
 
 
 (deftest test-upsert-multi
   (let [item
-        (upsert-items *db* {:conflict [:sku]
-                            :rows [{:price 1
-                                    :title "item1"
-                                    :sku "foo1a"
-                                    :group-id 1}
-                                   {:price 2
-                                    :sku "foo2a"
-                                    :group-id 2
-                                    :title "item2"}
-                                   {:title "item3"
-                                    :price 3
-                                    :group-id 3
-                                    :sku "foo3a"}]})]
-    (is (= 1 item))))
+        (upsert-items *conn* {:conflict [:sku]
+                              :rows [{:price 1
+                                      :title "item1"
+                                      :sku "x1"
+                                      :group-id 1}
+                                     {:price 2
+                                      :sku "foo2a"
+                                      :group-id 2
+                                      :title "item2"}
+                                     {:title "item3"
+                                      :price 3
+                                      :group-id 3
+                                      :sku "foo3a"}]})]
+
+    (is (= '({:sku "foo2a" :title "item2" :price 2 :group-id 2}
+             {:sku "foo3a" :title "item3" :price 3 :group-id 3}
+             {:sku "x1" :title "item1" :price 1 :group-id 1})
+
+           (sort-by :sku item)))))
 
 
 (deftest test-pass-table
   (let [item
-        (select-item-pass-table *db*
+        (select-item-pass-table *conn*
                                 {:table :items
-                                 :sku "aaa"})]
-    (is (= 1 item))))
+                                 :sku "x3"})]
+
+    (is (= {:sku "x3"
+            :title "Item 3"
+            :price 30
+            :group-id 3}
+           item))))

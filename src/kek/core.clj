@@ -17,6 +17,7 @@
    [clojure.string :as str]
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as jdbc.rs]
+   [next.jdbc.protocols :as jdbc.proto]
    [selmer.parser :as parser]))
 
 
@@ -137,12 +138,6 @@
       (recur acc args))))
 
 
-
-(defn datasource? [x]
-  (instance? javax.sql.DataSource x))
-
-
-
 (defn tag->arg ^String [^String tag-content]
   (some-> tag-content
           (str/trim)
@@ -221,7 +216,7 @@
                        (error! "the default data source is not set")))
 
                     ([arg]
-                     (if (datasource? arg)
+                     (if (satisfies? jdbc.proto/Connectable arg)
                        (-query arg nil)
                        (if DB
                          (-query DB arg)
@@ -440,7 +435,7 @@
      (join-comma
       (for [value values]
         (do
-          (if (map-entry?)
+          (if (map-entry? value)
             (.add *params* (val value))
             (.add *params* value))
           "?"))))))

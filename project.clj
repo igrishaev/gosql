@@ -19,7 +19,8 @@
    {:resource-paths ["env/test/resources"]}
 
    :dev
-   {:resource-paths ["env/dev/resources"]
+   {:source-paths ["env/dev/src"]
+    :resource-paths ["env/dev/resources"]
 
     :dependencies
     [[org.clojure/clojure "1.11.1"]

@@ -1,4 +1,11 @@
 
+
+{% query get-all-items :as-unqualified-maps %}
+select * from items order by sku
+{% endquery %}
+
+
+
 {% query get-items-by-ids
     :doc "Query all the items by a list of ids."
     :as-unqualified-maps
