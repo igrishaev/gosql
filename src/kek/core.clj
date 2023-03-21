@@ -21,13 +21,17 @@
    [selmer.parser :as parser]))
 
 
-(def ^:dynamic ^Map *context* nil)
 (def ^:dynamic ^List *params* nil)
 (def ^:dynamic ^String *file-name* nil)
 (def ^:dynamic ^List *functions* nil)
 (def ^:dynamic ^Namespace *namespace* nil)
 (def ^:dynamic ^DataSource *datasource* nil)
 (def ^:dynamic ^Keyword *quote-type* :ansi)
+
+
+(defmacro with-params [& body]
+  `(binding [*params* (new ArrayList)]
+     ~@body))
 
 
 (defn join-comma [coll]
@@ -225,30 +229,30 @@
                     ([db {:keys [print?
                                  sqlvec?] :as context}]
 
-                     (binding [*context* context
-                               *params* (new ArrayList)
-                               *quote-type* (or quote-type *quote-type*)]
+                     (with-params
 
-                       (let [query
-                             (parser/render-template template context)
+                       (binding [*quote-type* (or quote-type *quote-type*)]
 
-                             _
-                             (when print?
-                               (println query))
+                         (let [query
+                               (parser/render-template template context)
+
+                               _
+                               (when print?
+                                 (println query))
+
+                               query-vec
+                               (into [query] (vec *params*))]
+
+                           (if sqlvec?
 
                              query-vec
-                             (into [query] (vec *params*))]
 
-                         (if sqlvec?
+                             (let [result
+                                   (jdbc-func db query-vec jdbc-opt)]
 
-                           query-vec
-
-                           (let [result
-                                 (jdbc-func db query-vec jdbc-opt)]
-
-                             (if count?
-                               (-> result first :next.jdbc/update-count)
-                               result))))))))]
+                               (if count?
+                                 (-> result first :next.jdbc/update-count)
+                                 result)))))))))]
 
       (.add *functions* fn-var)
 

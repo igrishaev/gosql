@@ -8,8 +8,7 @@ select * from items order by sku
 
 {% query get-items-by-ids
     :doc "Query all the items by a list of ids."
-    :as-unqualified-maps
-%}
+    :as-unqualified-maps %}
 
 select * from items
 where id in {% sql/in ids %}
@@ -27,8 +26,7 @@ limit {% sql/? limit %}
 
 {% query insert-item
     :as-unqualified-maps
-    :one
-%}
+    :one %}
 
 insert into items {% sql/columns fields %}
 values {% sql/values fields %}
