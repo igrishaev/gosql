@@ -2,6 +2,10 @@
 repl:
 	lein with-profile +test repl
 
+.PHONY: test
+test:
+	lein test
+
 docker-prepare:
 	rm -rf ./.docker/postgres/data
 

@@ -15,21 +15,18 @@
    [com.github.seancorfield/next.jdbc "1.3.847"]]
 
   :profiles
-  {:test
-   {:resource-paths ["env/test/resources"]}
-
-   :dev
+  {:dev
    {:source-paths ["env/dev/src"]
     :resource-paths ["env/dev/resources"]
 
     :dependencies
     [[org.clojure/clojure "1.11.1"]
-     [org.postgresql/postgresql "42.5.3"]
 
+     ;; test
      [org.xerial/sqlite-jdbc "3.41.0.0"]
 
-
      ;; bench
+     [org.postgresql/postgresql "42.5.3"]
      [com.layerware/hugsql-core "0.5.3"]
      [com.layerware/hugsql-adapter-next-jdbc "0.5.3"]
 

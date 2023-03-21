@@ -87,6 +87,19 @@
            item))))
 
 
+(deftest test-update-item-by-sku
+  (let [item
+        (update-item-by-sku *conn*
+                            {:sku "x2"
+                             :fields {:price 999
+                                      :group-id 99}})]
+    (is (= {:sku "x2"
+            :title "Item 2"
+            :price 999
+            :group-id 99}
+           item))))
+
+
 (deftest test-upsert-multi
   (let [item
         (upsert-items *conn* {:conflict [:sku]

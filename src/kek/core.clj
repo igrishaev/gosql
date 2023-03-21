@@ -325,7 +325,7 @@
 
   Object
   (->column [x]
-    (error! "cannot coerce value %x to a column"))
+    (error! "cannot coerce value %s to a column" x))
 
   MapEntry
   (->column [x]
@@ -368,7 +368,7 @@
       (map ->column&quote columns)))))
 
 
-(parser/add-tag! :COLUMNS columns-handler)
+(parser/add-tag! :sql/columns columns-handler)
 
 
 (defn columns*-handler
@@ -381,7 +381,7 @@
       (map ->column&quote (first rows))))))
 
 
-(parser/add-tag! :COLUMNS* columns*-handler)
+(parser/add-tag! :sql/columns* columns*-handler)
 
 
 (defn excluded-handler
@@ -395,7 +395,7 @@
          (format "%s = EXCLUDED.%s" c c))))))
 
 
-(parser/add-tag! :EXCLUDED excluded-handler)
+(parser/add-tag! :sql/excluded excluded-handler)
 
 
 (defn excluded*-handler
@@ -409,20 +409,22 @@
          (format "%s = EXCLUDED.%s" c c))))))
 
 
-(parser/add-tag! :EXCLUDED* excluded*-handler)
+(parser/add-tag! :sql/excluded* excluded*-handler)
 
 
 (defn set-handler
   [[^String arg] ^Map context]
   (let [^Map value (get-arg-value! context arg)]
+    (when (empty? value)
+      (error! "columns `%s` are empty" arg))
     (join-comma
      (for [[k v] value]
        (do
          (.add *params* v)
-         (format "%s = ?" (->column&quote v)))))))
+         (format "%s = ?" (->column&quote k)))))))
 
 
-(parser/add-tag! :SET set-handler)
+(parser/add-tag! :sql/set set-handler)
 
 
 (defn values-handler
@@ -441,7 +443,7 @@
           "?"))))))
 
 
-(parser/add-tag! :VALUES values-handler)
+(parser/add-tag! :sql/values values-handler)
 
 
 (defn values*-handler
@@ -472,7 +474,7 @@
                "?")))))))))
 
 
-(parser/add-tag! :VALUES* values*-handler)
+(parser/add-tag! :sql/values* values*-handler)
 
 
 (defn in-handler
@@ -488,7 +490,7 @@
           "?"))))))
 
 
-(parser/add-tag! :IN in-handler)
+(parser/add-tag! :sql/in in-handler)
 
 
 (defn ?-handler
@@ -498,7 +500,7 @@
     "?"))
 
 
-(parser/add-tag! :? ?-handler)
+(parser/add-tag! :sql/? ?-handler)
 
 
 (defn quote-handler
@@ -510,7 +512,7 @@
       (->column&quote value))))
 
 
-(parser/add-tag! :quote quote-handler)
+(parser/add-tag! :sql/quote quote-handler)
 
 
 ;;
