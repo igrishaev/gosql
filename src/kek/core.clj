@@ -367,9 +367,8 @@
   (let [columns (get-arg-value! context arg)]
     (when (empty? columns)
       (error! "empty columns `%s`: %s" arg columns))
-    (wrap-brackets
-     (join-comma
-      (map ->column&quote columns)))))
+    (join-comma
+     (map ->column&quote columns))))
 
 
 (parser/add-tag! :sql/columns columns-handler)
@@ -380,9 +379,8 @@
   (let [^List rows (get-arg-value! context arg)]
     (when (empty? rows)
       (error! "empty rows `%s`: %s" arg rows))
-    (wrap-brackets
-     (join-comma
-      (map ->column&quote (first rows))))))
+    (join-comma
+     (map ->column&quote (first rows)))))
 
 
 (parser/add-tag! :sql/columns* columns*-handler)

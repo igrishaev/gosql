@@ -7,3 +7,4 @@ tests for default db
 rename the project
 test sqlvec?
 drop pg/docker
+sql/query tag?

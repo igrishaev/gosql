@@ -28,7 +28,7 @@ limit {% sql/? limit %}
     :as-unqualified-maps
     :one %}
 
-insert into items {% sql/columns fields %}
+insert into items ({% sql/columns fields %})
 values {% sql/values fields %}
 returning *
 
@@ -37,7 +37,7 @@ returning *
 
 {% query upsert-item :one :as-unqualified-maps %}
 
-insert into items {% sql/columns fields %}
+insert into items ({% sql/columns fields %})
 values {% sql/values fields %}
 on conflict (sku) do update set {% sql/excluded fields %}
 returning *
@@ -47,9 +47,9 @@ returning *
 
 {% query upsert-items :as-unqualified-maps %}
 
-insert into items {% sql/columns* rows %}
+insert into items ({% sql/columns* rows %})
 values {% sql/values* rows %}
-on conflict {% sql/columns conflict %} do update
+on conflict ({% sql/columns conflict %}) do update
 set {% sql/excluded* rows %}
 returning *
 
@@ -70,12 +70,16 @@ returning *
 {% query upsert-items-array
     :as-unqualified-maps %}
 
-insert into items {% sql/columns header %}
+insert into items ({% sql/columns header %})
 values {% sql/values* rows %}
 on conflict (sku) do update
 set {% sql/excluded header %}
-returning *
-
+returning
+{% if return %}
+  {% sql/columns return %}
+{% else %}
+  *
+{% endif %}
 {% endquery %}
 
 
@@ -97,9 +101,16 @@ where sku = {% sql/? sku %}
 {% endquery %}
 
 
-{% query go-get-items-by-sku-list :as-unqualified-maps %}
 
-select * from items
-where sku in {% sql/in sku-list %}
+{% query fn-test-arglists :1 :as-unqualified-maps
+   :doc " A docstring for the function.  "
+ %}
+
+select {% sql/columns cols %} from {% sql/quote table %}
+{% if sku %}
+where sku = {% sql/? sku %}
+{% elif title %}
+where title = {% sql/? title %}
+{% endif %}
 
 {% endquery %}

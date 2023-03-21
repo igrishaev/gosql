@@ -1,6 +1,8 @@
 (ns kek.core-test
   (:require
+   kek.fake-ns
    [next.jdbc :as jdbc]
+   [clojure.string :as str]
    [clojure.test :refer [deftest is use-fixtures]]
    [kek.core :as kek]))
 
@@ -27,6 +29,10 @@
 
 (def funcs
   (kek/from-resource "queries.sql"))
+
+
+(def funcs-foreign
+  (kek/from-resource "queries.sql" {:ns 'kek.fake-ns}))
 
 
 (deftest test-load-resutl
@@ -134,3 +140,72 @@
             :price 30
             :group-id 3}
            item))))
+
+
+(deftest test-fn-test-arglists
+  (let [item1
+        (fn-test-arglists *conn* {:sku "x1"
+                                  :table "items"
+                                  :cols [:sku :title]})
+
+        item2
+        (fn-test-arglists *conn* {:title "Item 3"
+                                  :table "items"
+                                  :cols [:sku :title]})]
+
+    (is (= {:sku "x1" :title "Item 1"}
+           item1))
+
+    (is (= {:sku "x3" :title "Item 3"}
+           item2))))
+
+
+(deftest test-fn-var-meta
+  (let [var-meta
+        (-> fn-test-arglists var meta)]
+
+    (is (= {:ns (the-ns 'kek.core-test)
+            :name 'fn-test-arglists
+            :column 1
+            :line 102
+            :arglists
+            '([]
+              [{:as context}]
+              [db]
+              [db {:as context :keys [print? sqlvec? cols sku table title]}])
+            :doc "A docstring for the function."}
+
+           (dissoc var-meta :file)))
+
+    (is (str/ends-with? (:file var-meta)
+                        "env/dev/resources/queries.sql"))))
+
+
+(deftest test-upsert-items-array
+  (let [matrix
+        [[:sku :title :group-id]
+         ["x1" "Item 1" 999]
+         ["x5" "Item 5" 123]
+         ["x9" "Item 9" 321]]
+
+        items
+        (upsert-items-array *conn*
+                            {:header (first matrix)
+                             :rows (rest matrix)
+                             :return [:sku :group-id]})]
+
+    (is (= [{:sku "x1" :group-id 999}
+            {:sku "x5" :group-id 123}
+            {:sku "x9" :group-id 321}]
+           items))))
+
+
+(deftest test-get-items-by-ids-foreign
+  (let [items
+        (kek.fake-ns/get-all-items *conn*)]
+    (is (= 3 (count items)))
+    (is (= {:sku "x1"
+            :title "Item 1"
+            :price 10
+            :group-id 1}
+           (first items)))))
