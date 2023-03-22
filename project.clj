@@ -24,6 +24,7 @@
 
      ;; test
      [org.xerial/sqlite-jdbc "3.41.0.0"]
+     [mount "0.1.17"]
 
      ;; bench
      [org.postgresql/postgresql "42.5.3"]

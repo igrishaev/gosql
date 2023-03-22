@@ -3,6 +3,7 @@
    clojure.lang.Keyword
    clojure.lang.MapEntry
    clojure.lang.Namespace
+   clojure.lang.Var
    java.io.File
    java.io.LineNumberReader
    java.io.Reader
@@ -17,7 +18,6 @@
    [clojure.string :as str]
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as jdbc.rs]
-   [next.jdbc.protocols :as jdbc.proto]
    [selmer.parser :as parser]))
 
 
@@ -25,7 +25,7 @@
 (def ^:dynamic ^String *file-name* nil)
 (def ^:dynamic ^List *functions* nil)
 (def ^:dynamic ^Namespace *namespace* nil)
-(def ^:dynamic ^DataSource *datasource* nil)
+(def ^:dynamic ^Var *db-var* nil)
 (def ^:dynamic ^Keyword *quote-type* :ansi)
 
 
@@ -91,7 +91,7 @@
       nil
       acc
 
-      ":ansi"
+      (":ansi" ":pg" ":sqlite")
       (recur (assoc acc :quote-type :ansi) args)
 
       ":mysql"
@@ -110,6 +110,12 @@
       (recur (assoc acc
                     :builder-fn
                     jdbc.rs/as-maps)
+             args)
+
+      ":as-kebab-maps"
+      (recur (assoc acc
+                    :builder-fn
+                    jdbc.rs/as-kebab-maps)
              args)
 
       ":as-unqualified-maps"
@@ -206,8 +212,8 @@
             builder-fn
             (assoc :builder-fn builder-fn))
 
-          DB
-          *datasource*
+          db-var
+          *db-var*
 
           fn-var
           (intern *namespace* func-name
@@ -215,16 +221,14 @@
                   (fn -query
 
                     ([]
-                     (if DB
-                       (-query DB nil)
+                     (if db-var
+                       (-query @db-var nil)
                        (error! "the default data source is not set")))
 
                     ([arg]
-                     (if (satisfies? jdbc.proto/Connectable arg)
-                       (-query arg nil)
-                       (if DB
-                         (-query DB arg)
-                         (error! "the default data source is not set"))))
+                     (if db-var
+                       (-query @db-var arg)
+                       (-query arg nil)))
 
                     ([db {:keys [print?
                                  sqlvec?] :as context}]
@@ -302,7 +306,7 @@
 
   (case *quote-type*
 
-    (:ansi :pg)
+    (:ansi :pg :sqlite)
     (quote-with column \" \")
 
     :mysql
@@ -371,7 +375,7 @@
      (map ->column&quote columns))))
 
 
-(parser/add-tag! :sql/columns columns-handler)
+(parser/add-tag! :sql/cols columns-handler)
 
 
 (defn columns*-handler
@@ -383,7 +387,7 @@
      (map ->column&quote (first rows)))))
 
 
-(parser/add-tag! :sql/columns* columns*-handler)
+(parser/add-tag! :sql/cols* columns*-handler)
 
 
 (defn excluded-handler
@@ -444,7 +448,7 @@
          "?")))))
 
 
-(parser/add-tag! :sql/values values-handler)
+(parser/add-tag! :sql/vals values-handler)
 
 
 (defn values*-handler
@@ -475,23 +479,7 @@
                "?")))))))))
 
 
-(parser/add-tag! :sql/values* values*-handler)
-
-
-(defn in-handler
-  [[^String arg] ^Map context]
-  (let [value (get-arg-value! context arg)]
-    (when (empty? value)
-      (error! "IN argument `%s` is empty" arg))
-    (wrap-brackets
-     (join-comma
-      (for [item value]
-        (do
-          (.add *params* item)
-          "?"))))))
-
-
-(parser/add-tag! :sql/in in-handler)
+(parser/add-tag! :sql/vals* values*-handler)
 
 
 (defn ?-handler
@@ -527,7 +515,7 @@
    (binding [*functions* (new ArrayList)
              *namespace* (or (some-> params :ns the-ns)
                              *ns*)
-             *datasource* (:db params)]
+             *db-var* (:db-var params)]
      (parser/render-template
       (parser/parse parser/parse-input
                     (new LineNumberReader rdr))

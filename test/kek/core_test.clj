@@ -129,6 +129,34 @@
            (sort-by :sku item)))))
 
 
+
+(deftest test-upsert-multi-sqlvec
+  (let [result
+        (upsert-items *conn* {:sqlvec? true
+                              :conflict [:sku]
+                              :rows [{:price 1
+                                      :title "item1"
+                                      :sku "x1"
+                                      :group-id 1}
+                                     {:price 2
+                                      :sku "foo2a"
+                                      :group-id 2
+                                      :title "item2"}
+                                     {:title "item3"
+                                      :price 3
+                                      :group-id 3
+                                      :sku "foo3a"}]})]
+    (is (= ["insert into items (price, title, sku, \"group-id\")
+values (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)
+on conflict (sku) do update
+set price = EXCLUDED.price, title = EXCLUDED.title, sku = EXCLUDED.sku, \"group-id\" = EXCLUDED.\"group-id\"
+returning *"
+            1 "item1"    "x1" 1
+            2 "item2" "foo2a" 2
+            3 "item3" "foo3a" 3]
+           result))))
+
+
 (deftest test-pass-table
   (let [item
         (select-item-pass-table *conn*
@@ -216,3 +244,13 @@
         (fn-test-delete-count *conn*
                               {:sku-list ["x1" "x3" "x5"]})]
     (is (= 2 result))))
+
+
+(deftest test-qualified-maps
+  (let [item
+        (get-items-qualified-maps *conn*)]
+    (is (= {:items/sku "x1"
+            :items/title "Item 1"
+            :items/price 10
+            :items/group-id 1}
+         item))))

@@ -11,7 +11,7 @@ select * from items order by sku
     :as-unqualified-maps %}
 
 select * from items
-where id in {% sql/in ids %}
+where id in {% sql/vals ids %}
 
 {% endquery %}
 
@@ -28,8 +28,8 @@ limit {% sql/? limit %}
     :as-unqualified-maps
     :one %}
 
-insert into items ({% sql/columns fields %})
-values ({% sql/values fields %})
+insert into items ({% sql/cols fields %})
+values ({% sql/vals fields %})
 returning *
 
 {% endquery %}
@@ -37,8 +37,8 @@ returning *
 
 {% query upsert-item :one :as-unqualified-maps %}
 
-insert into items ({% sql/columns fields %})
-values ({% sql/values fields %})
+insert into items ({% sql/cols fields %})
+values ({% sql/vals fields %})
 on conflict (sku) do update set {% sql/excluded fields %}
 returning *
 
@@ -47,9 +47,9 @@ returning *
 
 {% query upsert-items :as-unqualified-maps %}
 
-insert into items ({% sql/columns* rows %})
-values {% sql/values* rows %}
-on conflict ({% sql/columns conflict %}) do update
+insert into items ({% sql/cols* rows %})
+values {% sql/vals* rows %}
+on conflict ({% sql/cols conflict %}) do update
 set {% sql/excluded* rows %}
 returning *
 
@@ -70,13 +70,13 @@ returning *
 {% query upsert-items-array
     :as-unqualified-maps %}
 
-insert into items ({% sql/columns header %})
-values {% sql/values* rows %}
+insert into items ({% sql/cols header %})
+values {% sql/vals* rows %}
 on conflict (sku) do update
 set {% sql/excluded header %}
 returning
 {% if return %}
-  {% sql/columns return %}
+  {% sql/cols return %}
 {% else %}
   *
 {% endif %}
@@ -106,7 +106,7 @@ where sku = {% sql/? sku %}
    :doc " A docstring for the function.  "
  %}
 
-select {% sql/columns cols %} from {% sql/quote table %}
+select {% sql/cols cols %} from {% sql/quote table %}
 {% if sku %}
 where sku = {% sql/? sku %}
 {% elif title %}
@@ -118,6 +118,14 @@ where title = {% sql/? title %}
 
 {% query fn-test-delete-count :count %}
 
-delete from items where sku in ({% sql/values sku-list %})
+delete from items where sku in ({% sql/vals sku-list %})
+
+{% endquery %}
+
+
+{% query get-items-qualified-maps :1 %}
+
+select * from items
+where sku = 'x1' limit 1
 
 {% endquery %}
