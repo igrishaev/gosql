@@ -1,3 +1,1 @@
-drop docker/pg
-drop root files
 add readme
