@@ -504,10 +504,6 @@
 (parser/add-tag! :sql/quote quote-handler)
 
 
-;;
-;; Public API
-;;
-
 (defn from-reader
   ([^Reader rdr]
    (from-reader rdr nil))
@@ -538,11 +534,20 @@
   (from-reader (new StringReader string)))
 
 
+;;
+;; Public API
+;;
+
 (defn from-resource
-  ([path]
+
+  {:arglists
+   '([path]
+     [path {:keys [ns db-var]}])}
+
+  ([^String path]
    (from-resource path nil))
 
-  ([path options]
+  ([^String path options]
    (from-file (-> path
                   (io/resource)
                   (or (error! "resource %s doesn't exist" path))
@@ -551,8 +556,13 @@
 
 
 (defn from-file-path
-  ([path]
+
+  {:arglists
+   '([path]
+     [path {:keys [ns db-var]}])}
+
+  ([^String path]
    (from-file-path path nil))
 
-  ([path options]
+  ([^String path options]
    (from-file (io/file path))))

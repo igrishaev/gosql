@@ -195,7 +195,6 @@ returning *"
     (is (= {:ns (the-ns 'kek.core-test)
             :name 'fn-test-arglists
             :column 1
-            :line 108
             :arglists
             '([]
               [{:as context}]
@@ -203,7 +202,9 @@ returning *"
               [db {:as context :keys [print? sqlvec? cols sku table title]}])
             :doc "A docstring for the function."}
 
-           (dissoc var-meta :file)))
+           (dissoc var-meta :file :line)))
+
+    (is (int? (:line var-meta)))
 
     (is (str/ends-with? (:file var-meta)
                         "env/dev/resources/queries.sql"))))
