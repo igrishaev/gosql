@@ -1,0 +1,1 @@
+(ns gosql.fake-ns)

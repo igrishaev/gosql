@@ -1,4 +1,4 @@
-(ns kek.core
+(ns gosql.core
   (:import
    clojure.lang.Keyword
    clojure.lang.MapEntry

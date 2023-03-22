@@ -1,10 +1,10 @@
-(ns kek.core-test
+(ns gosql.core-test
   (:require
-   kek.fake-ns
+   gosql.fake-ns
    [next.jdbc :as jdbc]
    [clojure.string :as str]
    [clojure.test :refer [deftest is use-fixtures]]
-   [kek.core :as kek]))
+   [gosql.core :as gosql]))
 
 
 (def db-spec
@@ -28,11 +28,11 @@
 
 
 (def funcs
-  (kek/from-resource "queries.sql"))
+  (gosql/from-resource "queries.sql"))
 
 
 (def funcs-foreign
-  (kek/from-resource "queries.sql" {:ns 'kek.fake-ns}))
+  (gosql/from-resource "queries.sql" {:ns 'gosql.fake-ns}))
 
 
 (deftest test-load-resutl
@@ -52,9 +52,9 @@
 
 (deftest test-in-missing
   (is (thrown-with-msg?
-          Exception
-          #"parameter `ids` is not set in the context"
-          (get-items-by-ids *conn* {}))))
+        Exception
+        #"parameter `ids` is not set in the context"
+        (get-items-by-ids *conn* {}))))
 
 
 (deftest test-param-tag
@@ -64,8 +64,8 @@
     (is (= result [{:one 1}])))
 
   (is (thrown-with-msg?
-          Exception
-          #"parameter `limit` is not set in the context"
+        Exception
+        #"parameter `limit` is not set in the context"
         (test-limit *conn* {:foo 42}))))
 
 
@@ -192,7 +192,7 @@ returning *"
   (let [var-meta
         (-> fn-test-arglists var meta)]
 
-    (is (= {:ns (the-ns 'kek.core-test)
+    (is (= {:ns (the-ns 'gosql.core-test)
             :name 'fn-test-arglists
             :column 1
             :arglists
@@ -231,7 +231,7 @@ returning *"
 
 (deftest test-get-items-by-ids-foreign
   (let [items
-        (kek.fake-ns/get-all-items *conn*)]
+        (gosql.fake-ns/get-all-items *conn*)]
     (is (= 3 (count items)))
     (is (= {:sku "x1"
             :title "Item 1"
@@ -254,4 +254,4 @@ returning *"
             :items/title "Item 1"
             :items/price 10
             :items/group-id 1}
-         item))))
+           item))))

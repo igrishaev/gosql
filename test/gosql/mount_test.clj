@@ -1,4 +1,4 @@
-(ns kek.mount-test
+(ns gosql.mount-test
   (:import
    java.sql.Connection)
   (:require
@@ -6,7 +6,7 @@
    [next.jdbc :as jdbc]
    [clojure.string :as str]
    [clojure.test :refer [deftest is use-fixtures]]
-   [kek.core :as kek]))
+   [gosql.core :as gosql]))
 
 
 (def db-spec
@@ -48,7 +48,7 @@
 
 
 (def funcs
-  (kek/from-resource "queries.sql" {:db-var (var db)}))
+  (gosql/from-resource "queries.sql" {:db-var (var db)}))
 
 
 (deftest test-global-db-ok
