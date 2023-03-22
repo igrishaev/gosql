@@ -58,7 +58,7 @@
 
 (defn read-query [^Reader rdr]
   (let [sb (new StringBuilder)
-        re #"(?s)(.+)\{\%\s+endquery\s+\%\}$"]
+        re #"(?s)(.+)\{\%\s+sql/endquery\s+\%\}$"]
     (loop []
       (if-let [ch (read-char rdr)]
         (do
@@ -66,7 +66,7 @@
           (if-let [[_ query] (re-matches re (str sb))]
             query
             (recur)))
-        (error! "the reader has been closed before reaching the end of the 'endquery' tag")))))
+        (error! "the reader has been closed before reaching the end of the 'sql/endquery' tag")))))
 
 
 (defn clean-docstring [^String string]
@@ -279,14 +279,14 @@
 
 (swap! selmer.tags/expr-tags
        assoc
-       :query
+       :sql/query
        query-handler)
 
 
 (swap! selmer.tags/closing-tags
        assoc
-       :query
-       [:endquery])
+       :sql/query
+       [:sql/endquery])
 
 
 ;;

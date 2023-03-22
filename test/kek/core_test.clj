@@ -195,7 +195,7 @@ returning *"
     (is (= {:ns (the-ns 'kek.core-test)
             :name 'fn-test-arglists
             :column 1
-            :line 106
+            :line 108
             :arglists
             '([]
               [{:as context}]

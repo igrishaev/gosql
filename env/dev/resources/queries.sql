@@ -1,30 +1,29 @@
 
 
-{% query get-all-items :as-unqualified-maps %}
-select * from items order by sku
-{% endquery %}
+{% sql/query get-all-items :as-unqualified-maps %}
+    select * from items order by sku
+{% sql/endquery %}
 
 
 
-{% query get-items-by-ids
+{% sql/query get-items-by-ids
     :doc "Query all the items by a list of ids."
     :as-unqualified-maps %}
 
-select * from items
-where id in {% sql/vals ids %}
+    select * from items
+    where id in {% sql/vals ids %}
+{% sql/endquery %}
 
-{% endquery %}
 
-
-{% query test-limit :as-unqualified-maps %}
+{% sql/query test-limit :as-unqualified-maps %}
 
 select 1 as one
 limit {% sql/? limit %}
 
-{% endquery %}
+{% sql/endquery %}
 
 
-{% query insert-item
+{% sql/query insert-item
     :as-unqualified-maps
     :one %}
 
@@ -32,20 +31,18 @@ insert into items ({% sql/cols fields %})
 values ({% sql/vals fields %})
 returning *
 
-{% endquery %}
+{% sql/endquery %}
 
 
-{% query upsert-item :one :as-unqualified-maps %}
-
-insert into items ({% sql/cols fields %})
-values ({% sql/vals fields %})
-on conflict (sku) do update set {% sql/excluded fields %}
-returning *
-
-{% endquery %}
+{% sql/query upsert-item :one :as-unqualified-maps %}
+    insert into items ({% sql/cols fields %})
+    values ({% sql/vals fields %})
+    on conflict (sku) do update set {% sql/excluded fields %}
+    returning *
+{% sql/endquery %}
 
 
-{% query upsert-items :as-unqualified-maps %}
+{% sql/query upsert-items :as-unqualified-maps %}
 
 insert into items ({% sql/cols* rows %})
 values {% sql/vals* rows %}
@@ -53,21 +50,21 @@ on conflict ({% sql/cols conflict %}) do update
 set {% sql/excluded* rows %}
 returning *
 
-{% endquery %}
+{% sql/endquery %}
 
 
-{% query update-item-by-sku :1 :as-unqualified-maps %}
+{% sql/query update-item-by-sku :1 :as-unqualified-maps %}
 
 update items
 set {% sql/set fields %}
 where sku = {% sql/? sku %}
 returning *
 
-{% endquery %}
+{% sql/endquery %}
 
 
 
-{% query upsert-items-array
+{% sql/query upsert-items-array
     :as-unqualified-maps %}
 
 insert into items ({% sql/cols header %})
@@ -80,29 +77,29 @@ returning
 {% else %}
   *
 {% endif %}
-{% endquery %}
+{% sql/endquery %}
 
 
 
-{% query select-item-pass-table :1 :as-unqualified-maps %}
+{% sql/query select-item-pass-table :1 :as-unqualified-maps %}
 
 select * from {% sql/quote table mysql %}
 where sku = {% sql/? sku %}
 limit 1
 
-{% endquery %}
+{% sql/endquery %}
 
 
-{% query go-get-item-by-sku :1 :as-unqualified-maps %}
+{% sql/query go-get-item-by-sku :1 :as-unqualified-maps %}
 
 select * from items
 where sku = {% sql/? sku %}
 
-{% endquery %}
+{% sql/endquery %}
 
 
 
-{% query fn-test-arglists :1 :as-unqualified-maps
+{% sql/query fn-test-arglists :1 :as-unqualified-maps
    :doc " A docstring for the function.  "
  %}
 
@@ -113,19 +110,15 @@ where sku = {% sql/? sku %}
 where title = {% sql/? title %}
 {% endif %}
 
-{% endquery %}
+{% sql/endquery %}
 
 
-{% query fn-test-delete-count :count %}
-
-delete from items where sku in ({% sql/vals sku-list %})
-
-{% endquery %}
+{% sql/query fn-test-delete-count :count %}
+    delete from items where sku in ({% sql/vals sku-list %})
+{% sql/endquery %}
 
 
-{% query get-items-qualified-maps :1 %}
-
-select * from items
-where sku = 'x1' limit 1
-
-{% endquery %}
+{% sql/query get-items-qualified-maps :1 %}
+    select * from items
+    where sku = 'x1' limit 1
+{% sql/endquery %}
