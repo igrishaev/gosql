@@ -1,9 +1,31 @@
 # goSQL
 
+## Table of Contents
+
+<!-- toc -->
+
+- [Motivation](#motivation)
+- [How it works](#how-it-works)
+- [Installation](#installation)
+- [Quickstart](#quickstart)
+- [Other cases](#other-cases)
+- [License](#license)
+
+<!-- tocstop -->
+
+## Motivation
+
+## How it works
+
+## Installation
+
+## Quickstart
+
+## Other cases
 
 ## License
 
-Copyright © 2023 Ivan Grishaev
+Copyright &copy; 2023 Ivan Grishaev
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at
