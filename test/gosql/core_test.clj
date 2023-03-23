@@ -137,8 +137,7 @@
 
 (deftest test-upsert-multi-sqlvec
   (let [result
-        (upsert-items *conn* {:sqlvec? true
-                              :conflict [:sku]
+        (upsert-items-sqlvec {:conflict [:sku]
                               :rows [{:price 1
                                       :title "item1"
                                       :sku "x1"
@@ -156,18 +155,9 @@
     on conflict (sku) do update
     set price = EXCLUDED.price, title = EXCLUDED.title, sku = EXCLUDED.sku, \"group-id\" = EXCLUDED.\"group-id\"
     returning *"
-           1
-           "item1"
-           "x1"
-           1
-           2
-           "item2"
-           "foo2a"
-           2
-           3
-           "item3"
-           "foo3a"
-           3]
+            1 "item1"    "x1" 1
+            2 "item2" "foo2a" 2
+            3 "item3" "foo3a" 3]
            result))))
 
 
@@ -211,7 +201,7 @@
             :column 1
             :arglists
             '([db]
-              [db {:as context :keys [sqlvec? cols sku table title]}])
+              [db {:as context :keys [cols sku table title]}])
             :doc "A docstring for the function."}
 
            (dissoc var-meta :file :line)))

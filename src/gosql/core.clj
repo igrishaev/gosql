@@ -153,6 +153,9 @@
           func-name
           (-> query-name symbol)
 
+          sqlvec-name
+          (-> query-name (str "-sqlvec") symbol)
+
           vars
           (->> payload
                (re-seq #"(?m)\{\{\s*([^|\} ]+)")
@@ -189,40 +192,41 @@
           db
           *db*
 
+          sqlvec-func
+          (fn -sqlvec
+            ([]
+             (-sqlvec nil))
+            ([context]
+             (binding [*quote-type* (or quote-type *quote-type*)
+                       *params* (new ArrayList)]
+               (let [query
+                     (parser/render-template template context)]
+                 (into [query] (vec *params*))))))
+
           query-func
           (fn -query
 
             ([db]
              (-query db nil))
 
-            ([db {:keys [sqlvec?] :as context}]
+            ([db context]
 
-             (binding [*quote-type* (or quote-type *quote-type*)
-                       *params* (new ArrayList)]
+             (let [query-vec
+                   (sqlvec-func context)
 
-               (let [query
-                     (parser/render-template template context)
+                   result
+                   (jdbc-func db query-vec jdbc-opt)]
 
-                     query-vec
-                     (into [query] (vec *params*))]
+               (if count?
+                 (-> result first :next.jdbc/update-count)
+                 result))))
 
-                 (if sqlvec?
+          fn-var-sqlvec
+          (intern *namespace* sqlvec-name sqlvec-func)
 
-                   query-vec
-
-                   (let [result
-                         (jdbc-func db query-vec jdbc-opt)]
-
-                     (if count?
-                       (-> result first :next.jdbc/update-count)
-                       result)))))))
-
-
-          fn-var
+          fn-var-query
           (intern *namespace* func-name
-
                   (if db
-
                     (fn -query
                       ([]
                        (query-func @db nil))
@@ -230,37 +234,46 @@
                       ([context]
                        (query-func @db context)))
 
-                    (fn -query
-                      ([db]
-                       (query-func db nil))
-
-                      ([db context]
-                       (query-func db context)))))
+                    query-func))
 
           arg-context
-          {:as 'context
-           :keys (into ['sqlvec?] context-keys)}
+          (if (seq context-keys)
+            {:as 'context
+             :keys context-keys}
+            'context)
 
-
-          arglists
+          arglists-query
           (if db
             (list []
                   [arg-context])
             (list ['db]
                   ['db arg-context]))
 
+          arglists-sqlvec
+          (list []
+                [arg-context])
 
-          meta-map
+          meta-common
           {:doc doc
            :name func-name
            :line line
            :column 1
            :file *file-name*
-           :arglists arglists}]
+           :arglists arglists-sqlvec}
 
-      (.add *functions* fn-var)
+          meta-sqlvec
+          (assoc meta-common
+                 :arglists arglists-sqlvec)
 
-      (alter-meta! fn-var merge meta-map)
+          meta-query
+          (assoc meta-common
+                 :arglists arglists-query)]
+
+      (.add *functions* fn-var-query)
+      (.add *functions* fn-var-sqlvec)
+
+      (alter-meta! fn-var-query merge meta-query)
+      (alter-meta! fn-var-sqlvec merge meta-sqlvec)
 
       (fn [_]
         nil))))

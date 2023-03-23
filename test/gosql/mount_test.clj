@@ -91,7 +91,7 @@
             :name 'select-item-pass-table
             :column 1
             :arglists '([]
-                        [{:as context :keys [sqlvec? sku table]}])
+                        [{:as context :keys [sku table]}])
             :doc nil}
 
            (dissoc meta-map :file :line)))))
