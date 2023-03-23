@@ -50,7 +50,7 @@
 
 (def funcs
   (gosql/from-resource "queries.sql"
-                       {:db-var (var db)
+                       {:db (var db)
                         :builder-fn jdbc.rs/as-unqualified-maps}))
 
 
@@ -81,3 +81,17 @@
         (get-all-items)]
     (is (= ["x1" "x2" "x3"]
            (map :sku items)))))
+
+
+
+(deftest test-fn-meta
+  (let [meta-map
+        (-> select-item-pass-table var meta)]
+    (is (= {:ns (the-ns 'gosql.mount-test)
+            :name 'select-item-pass-table
+            :column 1
+            :arglists '([]
+                        [{:as context :keys [sqlvec? sku table]}])
+            :doc nil}
+
+           (dissoc meta-map :file :line)))))

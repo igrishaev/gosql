@@ -26,7 +26,7 @@
 (def ^:dynamic ^String *file-name* nil)
 (def ^:dynamic ^List *functions* nil)
 (def ^:dynamic ^Namespace *namespace* nil)
-(def ^:dynamic ^Var *db-var* nil)
+(def ^:dynamic ^Var *db* nil)
 (def ^:dynamic ^Fn *builder-fn* nil)
 (def ^:dynamic ^Keyword *quote-type* :ansi)
 
@@ -186,66 +186,81 @@
             builder-fn
             (assoc :builder-fn builder-fn))
 
-          db-var
-          *db-var*
+          db
+          *db*
+
+          query-func
+          (fn -query
+
+            ([db]
+             (-query db nil))
+
+            ([db {:keys [sqlvec?] :as context}]
+
+             (binding [*quote-type* (or quote-type *quote-type*)
+                       *params* (new ArrayList)]
+
+               (let [query
+                     (parser/render-template template context)
+
+                     query-vec
+                     (into [query] (vec *params*))]
+
+                 (if sqlvec?
+
+                   query-vec
+
+                   (let [result
+                         (jdbc-func db query-vec jdbc-opt)]
+
+                     (if count?
+                       (-> result first :next.jdbc/update-count)
+                       result)))))))
+
 
           fn-var
           (intern *namespace* func-name
 
-                  (fn -query
+                  (if db
 
-                    ([]
-                     (if db-var
-                       (-query @db-var nil)
-                       (error! "the default data source is not set")))
+                    (fn -query
+                      ([]
+                       (query-func @db nil))
 
-                    ([arg]
-                     (if db-var
-                       (-query @db-var arg)
-                       (-query arg nil)))
+                      ([context]
+                       (query-func @db context)))
 
-                    ([db {:keys [print?
-                                 sqlvec?] :as context}]
+                    (fn -query
+                      ([db]
+                       (query-func db nil))
 
-                     (with-params
+                      ([db context]
+                       (query-func db context)))))
 
-                       (binding [*quote-type* (or quote-type *quote-type*)]
+          arg-context
+          {:as 'context
+           :keys (into ['sqlvec?] context-keys)}
 
-                         (let [query
-                               (parser/render-template template context)
 
-                               _
-                               (when print?
-                                 (println query))
+          arglists
+          (if db
+            (list []
+                  [arg-context])
+            (list ['db]
+                  ['db arg-context]))
 
-                               query-vec
-                               (into [query] (vec *params*))]
 
-                           (if sqlvec?
-
-                             query-vec
-
-                             (let [result
-                                   (jdbc-func db query-vec jdbc-opt)]
-
-                               (if count?
-                                 (-> result first :next.jdbc/update-count)
-                                 result)))))))))]
+          meta-map
+          {:doc doc
+           :name func-name
+           :line line
+           :column 1
+           :file *file-name*
+           :arglists arglists}]
 
       (.add *functions* fn-var)
 
-      (alter-meta! fn-var assoc
-                   :doc doc
-                   :name func-name
-                   :line line
-                   :column 1
-                   :file *file-name*
-                   :arglists
-                   (list []
-                         [{:as 'context}]
-                         ['db]
-                         ['db {:as 'context
-                               :keys (into ['print? 'sqlvec?] context-keys)}]))
+      (alter-meta! fn-var merge meta-map)
 
       (fn [_]
         nil))))
@@ -492,10 +507,10 @@
 (defn from-reader
   ([^Reader rdr]
    (from-reader rdr nil))
-  ([^Reader rdr {:keys [ns db-var builder-fn]}]
+  ([^Reader rdr {:keys [ns db builder-fn]}]
    (binding [*functions* (new ArrayList)
              *namespace* (or (some-> ns the-ns) *ns*)
-             *db-var* db-var
+             *db* db
              *builder-fn* builder-fn]
      (parser/render-template
       (parser/parse parser/parse-input
@@ -527,7 +542,7 @@
 
   {:arglists
    '([path]
-     [path {:keys [ns db-var builder-fn]}])}
+     [path {:keys [ns db builder-fn]}])}
 
   ([^String path]
    (from-resource path nil))
@@ -544,7 +559,7 @@
 
   {:arglists
    '([path]
-     [path {:keys [ns db-var builder-fn]}])}
+     [path {:keys [ns db builder-fn]}])}
 
   ([^String path]
    (from-file-path path nil))

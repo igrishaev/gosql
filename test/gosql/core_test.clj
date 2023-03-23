@@ -210,10 +210,8 @@
             :name 'fn-test-arglists
             :column 1
             :arglists
-            '([]
-              [{:as context}]
-              [db]
-              [db {:as context :keys [print? sqlvec? cols sku table title]}])
+            '([db]
+              [db {:as context :keys [sqlvec? cols sku table title]}])
             :doc "A docstring for the function."}
 
            (dissoc var-meta :file :line)))
