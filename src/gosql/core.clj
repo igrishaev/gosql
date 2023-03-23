@@ -1,5 +1,6 @@
 (ns gosql.core
   (:import
+   clojure.lang.Fn
    clojure.lang.Keyword
    clojure.lang.MapEntry
    clojure.lang.Namespace
@@ -26,6 +27,7 @@
 (def ^:dynamic ^List *functions* nil)
 (def ^:dynamic ^Namespace *namespace* nil)
 (def ^:dynamic ^Var *db-var* nil)
+(def ^:dynamic ^Fn *builder-fn* nil)
 (def ^:dynamic ^Keyword *quote-type* :ansi)
 
 
@@ -106,36 +108,6 @@
       (":1" ":one")
       (recur (assoc acc :one? true) args)
 
-      ":as-maps"
-      (recur (assoc acc
-                    :builder-fn
-                    jdbc.rs/as-maps)
-             args)
-
-      ":as-kebab-maps"
-      (recur (assoc acc
-                    :builder-fn
-                    jdbc.rs/as-kebab-maps)
-             args)
-
-      ":as-unqualified-maps"
-      (recur (assoc acc
-                    :builder-fn
-                    jdbc.rs/as-unqualified-maps)
-             args)
-
-      ":as-unqualified-kebab-maps"
-      (recur (assoc acc
-                    :builder-fn
-                    jdbc.rs/as-unqualified-kebab-maps)
-             args)
-
-      ":as-arrays"
-      (recur (assoc acc
-                    :builder-fn
-                    jdbc.rs/as-arrays)
-             args)
-
       ":doc"
       (let [[doc & args] args]
         (if (string? doc)
@@ -172,9 +144,11 @@
           {:keys [one?
                   quote-type
                   doc
-                  builder-fn
                   count?]}
           (args->opts args-rest)
+
+          builder-fn
+          *builder-fn*
 
           func-name
           (-> query-name symbol)
@@ -518,11 +492,11 @@
 (defn from-reader
   ([^Reader rdr]
    (from-reader rdr nil))
-  ([^Reader rdr params]
+  ([^Reader rdr {:keys [ns db-var builder-fn]}]
    (binding [*functions* (new ArrayList)
-             *namespace* (or (some-> params :ns the-ns)
-                             *ns*)
-             *db-var* (:db-var params)]
+             *namespace* (or (some-> ns the-ns) *ns*)
+             *db-var* db-var
+             *builder-fn* builder-fn]
      (parser/render-template
       (parser/parse parser/parse-input
                     (new LineNumberReader rdr))
@@ -553,7 +527,7 @@
 
   {:arglists
    '([path]
-     [path {:keys [ns db-var]}])}
+     [path {:keys [ns db-var builder-fn]}])}
 
   ([^String path]
    (from-resource path nil))
@@ -570,7 +544,7 @@
 
   {:arglists
    '([path]
-     [path {:keys [ns db-var]}])}
+     [path {:keys [ns db-var builder-fn]}])}
 
   ([^String path]
    (from-file-path path nil))

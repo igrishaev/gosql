@@ -4,6 +4,7 @@
   (:require
    [mount.core :as mount]
    [next.jdbc :as jdbc]
+   [next.jdbc.result-set :as jdbc.rs]
    [clojure.string :as str]
    [clojure.test :refer [deftest is use-fixtures]]
    [gosql.core :as gosql]))
@@ -48,7 +49,9 @@
 
 
 (def funcs
-  (gosql/from-resource "queries.sql" {:db-var (var db)}))
+  (gosql/from-resource "queries.sql"
+                       {:db-var (var db)
+                        :builder-fn jdbc.rs/as-unqualified-maps}))
 
 
 (deftest test-global-db-ok
