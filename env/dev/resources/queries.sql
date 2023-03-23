@@ -122,3 +122,9 @@ where title = {% sql/? title %}
     select * from items
     where sku = 'x1' limit 1
 {% sql/endquery %}
+
+
+{% sql/query fn-with-raw-tag :as-unqualified-maps %}
+    select * from items
+    where {% sql/raw where %}
+{% sql/endquery %}

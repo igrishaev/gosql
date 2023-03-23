@@ -255,3 +255,12 @@ returning *"
             :items/price 10
             :items/group-id 1}
            item))))
+
+
+(deftest test-raw-clause
+  (let [items
+        (fn-with-raw-tag *conn*
+                         {:where "sku in ('x1', 'x3')"})]
+
+    (is (= ["x1" "x3"]
+           (mapv :sku items)))))

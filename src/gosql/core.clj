@@ -366,6 +366,17 @@
       value)))
 
 
+(defn raw-handler
+  [[^String arg] ^Map context]
+  (let [value (get-arg-value! context arg)]
+    (if (string? value)
+      value
+      (str value))))
+
+
+(parser/add-tag! :sql/raw raw-handler)
+
+
 (defn columns-handler
   [[^String arg] ^Map context]
   (let [columns (get-arg-value! context arg)]
