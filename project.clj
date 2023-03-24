@@ -1,4 +1,4 @@
-(defproject com.github.igrishaev/gosql "0.1.0"
+(defproject com.github.igrishaev/gosql "0.1.1-SNAPSHOT"
 
   :description
   "Good old SQL driven with templates"
