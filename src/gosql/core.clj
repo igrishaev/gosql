@@ -239,7 +239,7 @@
           arg-context
           (if (seq context-keys)
             {:as 'context
-             :keys context-keys}
+             :keys (vector context-keys)}
             'context)
 
           arglists-query
