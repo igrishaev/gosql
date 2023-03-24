@@ -19,6 +19,18 @@
 
 ## Installation
 
+Leiningen/Boot:
+
+~~~clojure
+[com.github.igrishaev/gosql "0.1.0"]
+~~~
+
+Clojure CLI/deps.edn
+
+~~~clojure
+com.github.igrishaev/gosql {:mvn/version "0.1.0"}
+~~~
+
 ## Quickstart
 
 ## Other cases
