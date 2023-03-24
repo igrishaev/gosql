@@ -12,8 +12,8 @@
 
   (gosql/with-params
     (is (thrown-with-msg?
-            Exception
-            #"parameter `abc` is not set in the context"
+          Exception
+          #"parameter `abc` is not set, query: `null`"
           (gosql/?-handler ["abc"] {:foo 1})))))
 
 

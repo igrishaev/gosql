@@ -58,7 +58,7 @@
 (deftest test-in-missing
   (is (thrown-with-msg?
         Exception
-        #"parameter `ids` is not set in the context"
+        #"parameter `ids` is not set, query: `get-items-by-ids`"
         (get-items-by-ids *conn* {}))))
 
 
@@ -70,7 +70,7 @@
 
   (is (thrown-with-msg?
         Exception
-        #"parameter `limit` is not set in the context"
+        #"parameter `limit` is not set, query: `test-limit`"
         (test-limit *conn* {:foo 42}))))
 
 

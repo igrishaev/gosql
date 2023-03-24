@@ -22,6 +22,7 @@
    [selmer.parser :as parser]))
 
 
+(def ^:dynamic ^String *query-name* nil)
 (def ^:dynamic ^List *params* nil)
 (def ^:dynamic ^String *file-name* nil)
 (def ^:dynamic ^List *functions* nil)
@@ -198,7 +199,8 @@
              (-sqlvec nil))
             ([context]
              (binding [*quote-type* (or quote-type *quote-type*)
-                       *params* (new ArrayList)]
+                       *params* (new ArrayList)
+                       *query-name* query-name]
                (let [query
                      (parser/render-template template context)]
                  (into [query] (vec *params*))))))
@@ -239,7 +241,7 @@
           arg-context
           (if (seq context-keys)
             {:as 'context
-             :keys (vector context-keys)}
+             :keys (vec context-keys)}
             'context)
 
           arglists-query
@@ -364,8 +366,13 @@
   (let [value
         (get context (keyword arg) ::miss)]
     (if (identical? value ::miss)
-      (error! "parameter `%s` is not set in the context" arg)
+      (error! "parameter `%s` is not set, query: `%s`" arg *query-name*)
       value)))
+
+
+(defn check-empty! [value arg]
+  (when (empty? value)
+    (error! "parameter `%s` is empty, query: `%s`" arg *query-name*)))
 
 
 (defn raw-handler
@@ -382,8 +389,7 @@
 (defn columns-handler
   [[^String arg] ^Map context]
   (let [columns (get-arg-value! context arg)]
-    (when (empty? columns)
-      (error! "empty columns `%s`: %s" arg columns))
+    (check-empty! columns arg)
     (join-comma
      (map ->column&quote columns))))
 
@@ -394,8 +400,7 @@
 (defn columns*-handler
   [[^String arg] ^Map context]
   (let [^List rows (get-arg-value! context arg)]
-    (when (empty? rows)
-      (error! "empty rows `%s`: %s" arg rows))
+    (check-empty! rows arg)
     (join-comma
      (map ->column&quote (first rows)))))
 
@@ -406,8 +411,7 @@
 (defn excluded-handler
   [[^String arg] ^Map context]
   (let [values (get-arg-value! context arg)]
-    (when (empty? values)
-      (error! "values `%s` are empty" arg))
+    (check-empty! values arg)
     (join-comma
      (for [value values]
        (let [c (->column&quote value)]
@@ -420,8 +424,7 @@
 (defn excluded*-handler
   [[^String arg] ^Map context]
   (let [^List rows (get-arg-value! context arg)]
-    (when (empty? rows)
-      (error! "excluded values `%s` are empty" arg))
+    (check-empty! rows arg)
     (join-comma
      (for [value (first rows)]
        (let [c (->column&quote value)]
@@ -434,8 +437,7 @@
 (defn set-handler
   [[^String arg] ^Map context]
   (let [^Map value (get-arg-value! context arg)]
-    (when (empty? value)
-      (error! "columns `%s` are empty" arg))
+    (check-empty! value arg)
     (join-comma
      (for [[k v] value]
        (do
@@ -450,8 +452,7 @@
   [[^Sting arg] ^Map context]
   (let [values
         (get-arg-value! context arg)]
-    (when (empty? values)
-      (error! "values `%s` are empty" arg))
+    (check-empty! values arg)
     (join-comma
      (for [value values]
        (do
@@ -470,8 +471,7 @@
         (get-arg-value! context arg)
 
         _
-        (when (empty? rows)
-          (error! "rows `%s` are empty" arg))
+        (check-empty! rows arg)
 
         row-first
         (first rows)
